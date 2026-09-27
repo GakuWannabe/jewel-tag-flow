@@ -67,11 +67,20 @@ export async function buildManualZip(sublotId: string, mapping: MapRow[], userNa
   const base = `${batch.lot.lot_no}-S${batch.sublot.sublot_no}`;
   zip.file(`${base}.xlsx`, buf);
   zip.file("batch.json", JSON.stringify(batch.rows, null, 2));
+  const [{ data: tg }, { data: rem }] = await Promise.all([
+    db.from("sublot_targets").select("*").eq("sublot_id", sublotId).maybeSingle(),
+    db.from("item_removals").select("tray_code,compartment_no,gross_weight,less_weight,net_weight,pcs,huids,reason,removed_at,removed_by").eq("sublot_id", sublotId).order("removed_at"),
+  ]);
+  const removals = rem ?? [];
   zip.file("manifest.json", JSON.stringify({
     lot_no: batch.lot.lot_no, sublot_no: batch.sublot.sublot_no, item_count: batch.rows.length,
     pcs_total: batch.rows.reduce((a, r) => a + r.pcs, 0),
     huid_count: batch.rows.reduce((a, r) => a + r.huids.length, 0),
     photo_count: batch.rows.filter((r) => r.photo_filename).length,
+    items_removed: removals.length > 0,
+    declared: tg ? { tags: tg.declared_tags, pieces: tg.declared_pieces, net_weight: Number(tg.declared_net_weight) } : null,
+    removed: tg ? { tags: tg.removed_tags, pieces: tg.removed_pieces, net_weight: Number(tg.removed_net_weight) } : null,
+    removals,
     generated_at: new Date().toISOString(), generated_by: userName,
   }, null, 2));
   zip.file("rename_map.csv", renameMapCsv(batch));

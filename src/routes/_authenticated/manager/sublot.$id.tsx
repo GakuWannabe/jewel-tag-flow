@@ -28,7 +28,7 @@ function SublotPage() {
     queryKey: ["sublot-admin", id],
     queryFn: async () => {
       const { data: s } = await db.from("sublots").select("*, product_types(*), lots(*, branches(*), vendors(*))").eq("id", id).single();
-      const [t, r, pool, items, slots, photog, br] = await Promise.all([
+      const [t, r, pool, items, slots, photog, br, rm] = await Promise.all([
         db.from("sublot_targets").select("*").eq("sublot_id", id).maybeSingle(),
         db.from("reconciliations").select("*").eq("sublot_id", id).order("created_at", { ascending: false }).limit(1),
         db.from("huid_pool").select("id,assigned_item_id").eq("sublot_id", id).is("deleted_at", null),
@@ -36,16 +36,21 @@ function SublotPage() {
         db.from("tag_slots").select("id,assigned_item_id").eq("sublot_id", id).is("superseded_at", null),
         db.from("user_roles").select("user_id, profiles:user_id(name)").eq("role", "photo"),
         db.from("bot_results").select("*").eq("sublot_id", id).order("created_at", { ascending: false }).limit(20),
+        db.from("item_removals").select("*").eq("sublot_id", id).order("removed_at", { ascending: false }),
       ]);
-      return { s, target: t.data, recon: r.data?.[0], pool: pool.data ?? [], items: items.data ?? [], slots: slots.data ?? [], photographers: photog.data ?? [], botResults: br.data ?? [] };
+      const removals = rm.data ?? [];
+      const uids = [...new Set(removals.map((x: any) => x.removed_by))];
+      const { data: profs } = uids.length ? await db.from("profiles").select("id,name").in("id", uids) : { data: [] };
+      return { s, target: t.data, recon: r.data?.[0], pool: pool.data ?? [], items: items.data ?? [], slots: slots.data ?? [], photographers: photog.data ?? [], botResults: br.data ?? [],
+        removals: removals.map((x: any) => ({ ...x, by: (profs ?? []).find((p: any) => p.id === x.removed_by)?.name ?? "—" })) };
     },
   });
   if (!data?.s) return <AppShell title="Sublot" back="/manager/lots"><p>Loading…</p></AppShell>;
-  const { s, target, recon, pool, items, slots } = data;
+  const { s, target, recon, pool, items, slots, removals } = data;
   const lot = s.lots;
-  const tt = target ? target.declared_tags + target.adjust_tags : 0;
-  const tp = target ? target.declared_pieces + target.adjust_pieces : 0;
-  const tn = target ? Number(target.declared_net_weight) + Number(target.adjust_net_weight) : 0;
+  const tt = target ? target.declared_tags - target.removed_tags : 0;
+  const tp = target ? target.declared_pieces - target.removed_pieces : 0;
+  const tn = target ? Number(target.declared_net_weight) - Number(target.removed_net_weight) : 0;
   const enteredPcs = items.reduce((a: number, i: any) => a + i.pcs, 0);
   const enteredNet = items.reduce((a: number, i: any) => a + Number(i.net_weight ?? 0), 0);
   const holds = items.filter((i: any) => i.hold_flag).length;
@@ -73,13 +78,17 @@ function SublotPage() {
         <div className="text-lg font-bold">{s.product_types.base_code} · {s.product_types.name}</div>
         <div className="num text-sm">IC {lot.branches.branch_code}{s.product_types.base_code}</div>
         <StatusBadge status={s.status} />
+        {removals.length > 0 && <span className="rounded bg-destructive px-2 py-1 text-xs font-bold text-destructive-foreground">ITEMS REMOVED ({removals.length})</span>}
         {s.halt_reason && <span className="font-bold text-destructive">{s.halt_reason.replace(/_/g, " ")}</span>}
         <div className="ml-auto flex flex-wrap gap-2">
-          {isMgr && s.status === "draft" && <Button disabled={!!busy} onClick={() => run("issue", () => db.from("sublots").update({ status: "issued" }).eq("id", id))}>Issue to staff</Button>}
+          {isMgr && s.status === "draft" && <Button className="h-12" disabled={!!busy} onClick={() => run("issue", async () => { const { error } = await db.from("sublots").update({ status: "issued" }).eq("id", id); if (error) throw error; toast.success("Issued — staff can now load trays"); })}>Issue to staff</Button>}
           {isMgr && s.status === "halted" && <Button variant="outline" onClick={() => run("reopen", () => rpc("manager_reopen_sublot", { p_sublot: id, p_status: "weighing" }))}>Reopen for weighing</Button>}
           {isMgr && s.status === "halted" && s.halt_reason === "bot_mismatch" && <Button variant="outline" onClick={() => run("reopen", () => rpc("manager_reopen_sublot", { p_sublot: id, p_status: "sealed" }))}>Clear halt (back to sealed)</Button>}
         </div>
       </div>
+      {isMgr && s.status === "draft" && (
+        <p className="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">Draft — staff can't see this sublot yet. Import the tag slot list and HUID list, then tap <b>Issue to staff</b>. Staff then pick lot {lot.lot_no} on the Station screen.</p>
+      )}
 
       <Tabs defaultValue="overview">
         <TabsList className="mb-3 h-auto flex-wrap">
@@ -87,13 +96,44 @@ function SublotPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Box title="Tags (compartments)"><Cmp a={items.length} b={tt} fmt={(x) => String(x)} /></Box>
-            <Box title="Pieces (HUIDs)"><Cmp a={enteredPcs} b={tp} fmt={(x) => String(x)} /></Box>
-            <Box title="Net weight (g)"><Cmp a={enteredNet} b={tn} fmt={fmt3} /></Box>
-          </div>
-          {target && (target.adjust_tags !== 0 || target.adjust_pieces !== 0 || Number(target.adjust_net_weight) !== 0) && (
-            <p className="text-sm text-muted-foreground">Declared {target.declared_tags} tags / {target.declared_pieces} pieces / {fmt3(target.declared_net_weight)} g, adjusted by removals {target.adjust_tags} tags / {target.adjust_pieces} pieces / {fmt3(target.adjust_net_weight)} g.</p>
+          {target && (
+            <Box title="Reconciliation — declared / removed / entered">
+              <div className="overflow-x-auto">
+                <table className="num w-full text-sm">
+                  <thead className="font-sans text-left text-xs text-muted-foreground"><tr><th className="p-1" /><th>Declared</th><th>Removed</th><th>Target</th><th>Entered</th><th>Variance</th></tr></thead>
+                  <tbody>
+                    {[
+                      { k: "Tags (compartments)", d: target.declared_tags, r: target.removed_tags, e: items.length, f: String },
+                      { k: "Pieces (HUIDs)", d: target.declared_pieces, r: target.removed_pieces, e: enteredPcs, f: String },
+                      { k: "Net weight (g)", d: Number(target.declared_net_weight), r: Number(target.removed_net_weight), e: enteredNet, f: fmt3 },
+                    ].map((row) => {
+                      const tgt = row.d - row.r; const v = row.e - tgt;
+                      return (
+                        <tr key={row.k} className="border-t text-base">
+                          <td className="p-1 font-sans text-sm font-semibold">{row.k}</td>
+                          <td>{row.f(row.d)}</td>
+                          <td className={row.r ? "font-bold text-destructive" : ""}>{row.r ? `−${row.f(row.r)}` : row.f(0)}</td>
+                          <td className="font-bold">{row.f(tgt)}</td>
+                          <td className="font-bold">{row.f(row.e)}</td>
+                          <td className={`font-bold ${Math.abs(v) > 0.0005 ? "text-destructive" : "text-success"}`}>{v > 0 ? "+" : ""}{row.f(v)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground">Declared totals never change. Weight tolerance is based on declared pieces ({target.declared_pieces}).</p>
+            </Box>
+          )}
+          {removals.length > 0 && (
+            <Box title="Removal log">
+              <div className="overflow-x-auto"><table className="num w-full text-sm">
+                <thead className="font-sans text-left text-xs text-muted-foreground"><tr><th className="p-1">When</th><th>By</th><th>Pos</th><th>Net</th><th>Pcs</th><th>HUIDs</th><th>Reason</th></tr></thead>
+                <tbody>{removals.map((x: any) => (
+                  <tr key={x.id} className="border-t"><td className="p-1">{new Date(x.removed_at).toLocaleString()}</td><td className="font-sans">{x.by}</td><td>{x.tray_code}-{String(x.compartment_no).padStart(2, "0")}</td><td>{fmt3(x.net_weight)}</td><td>{x.pcs}</td><td>{x.huids ?? "—"}</td><td className="font-sans">{x.reason}</td></tr>
+                ))}</tbody>
+              </table></div>
+            </Box>
           )}
           {recon && (
             <Box title={`Last reconciliation — ${recon.passed ? "PASS" : "FAIL"}`}>
@@ -178,13 +218,3 @@ function SublotPage() {
 const Box = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="space-y-2 rounded-lg border bg-card p-4"><h3 className="font-bold">{title}</h3>{children}</section>
 );
-function Cmp({ a, b, fmt }: { a: number; b: number; fmt: (n: number) => string }) {
-  const d = a - b;
-  return (
-    <div className="num grid grid-cols-3 gap-2 text-center">
-      <div><div className="font-sans text-xs text-muted-foreground">Entered</div><div className="text-2xl font-bold">{fmt(a)}</div></div>
-      <div><div className="font-sans text-xs text-muted-foreground">Target</div><div className="text-2xl font-bold">{fmt(b)}</div></div>
-      <div><div className="font-sans text-xs text-muted-foreground">Variance</div><div className={`text-2xl font-bold ${Math.abs(d) > 0.0005 ? "text-destructive" : "text-success"}`}>{d > 0 ? "+" : ""}{fmt(d)}</div></div>
-    </div>
-  );
-}

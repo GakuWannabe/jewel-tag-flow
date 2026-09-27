@@ -32,7 +32,7 @@ export function ItemsPanel({ sublotId, canEdit, onChange }: { sublotId: string; 
               <td className="whitespace-nowrap p-1 font-sans">
                 {canEdit && i.hold_flag && <Button size="sm" onClick={() => act(() => rpc("clear_hold", { p_item: i.id, p_note: prompt("Note (optional)") ?? "" }))}>Clear hold</Button>}
                 {canEdit && !i.ser_no && <Button size="sm" variant="destructive" className="ml-1" onClick={() => {
-                  const r = prompt("Reason for removing this item from the sublot? Its HUIDs return to the pool and the target is reduced.");
+                  const r = prompt(`Remove ${i.tray_sessions.trays.tray_code}-${String(i.compartment_no).padStart(2, "0")} (${fmt3(i.net_weight)} g, ${i.pcs} pcs)?\nThis is logged permanently. Its HUIDs return to the pool; declared totals stay unchanged and the removal is recorded separately.\n\nReason (required):`);
                   if (r) void act(() => rpc("remove_item", { p_item: i.id, p_reason: r }));
                 }}>Remove</Button>}
               </td>

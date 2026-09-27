@@ -273,6 +273,72 @@ export type Database = {
           },
         ]
       }
+      item_removals: {
+        Row: {
+          compartment_no: number | null
+          gross_weight: number | null
+          hold_flag: string | null
+          huids: string | null
+          id: string
+          item_id: string
+          less_weight: number | null
+          net_weight: number | null
+          pcs: number
+          reason: string
+          removed_at: string
+          removed_by: string
+          sublot_id: string
+          tray_code: string | null
+        }
+        Insert: {
+          compartment_no?: number | null
+          gross_weight?: number | null
+          hold_flag?: string | null
+          huids?: string | null
+          id?: string
+          item_id: string
+          less_weight?: number | null
+          net_weight?: number | null
+          pcs: number
+          reason: string
+          removed_at?: string
+          removed_by: string
+          sublot_id: string
+          tray_code?: string | null
+        }
+        Update: {
+          compartment_no?: number | null
+          gross_weight?: number | null
+          hold_flag?: string | null
+          huids?: string | null
+          id?: string
+          item_id?: string
+          less_weight?: number | null
+          net_weight?: number | null
+          pcs?: number
+          reason?: string
+          removed_at?: string
+          removed_by?: string
+          sublot_id?: string
+          tray_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_removals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_removals_sublot_id_fkey"
+            columns: ["sublot_id"]
+            isOneToOne: false
+            referencedRelation: "sublots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           actual_ser_no: number | null
@@ -719,40 +785,40 @@ export type Database = {
       }
       sublot_targets: {
         Row: {
-          adjust_net_weight: number
-          adjust_pieces: number
-          adjust_tags: number
           created_at: string
           created_by: string | null
           declared_net_weight: number
           declared_pieces: number
           declared_tags: number
+          removed_net_weight: number
+          removed_pieces: number
+          removed_tags: number
           sublot_id: string
           updated_at: string | null
           updated_by: string | null
         }
         Insert: {
-          adjust_net_weight?: number
-          adjust_pieces?: number
-          adjust_tags?: number
           created_at?: string
           created_by?: string | null
           declared_net_weight: number
           declared_pieces: number
           declared_tags: number
+          removed_net_weight?: number
+          removed_pieces?: number
+          removed_tags?: number
           sublot_id: string
           updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
-          adjust_net_weight?: number
-          adjust_pieces?: number
-          adjust_tags?: number
           created_at?: string
           created_by?: string | null
           declared_net_weight?: number
           declared_pieces?: number
           declared_tags?: number
+          removed_net_weight?: number
+          removed_pieces?: number
+          removed_tags?: number
           sublot_id?: string
           updated_at?: string | null
           updated_by?: string | null

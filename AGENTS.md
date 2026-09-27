@@ -12,7 +12,7 @@
 # Architecture rules
 
 - Staff/photo writes go only through SECURITY DEFINER RPCs (open_tray_session, set_compartment, save_weight, assign_item_huids, …); tables grant SELECT only. Why: business rules (locks, HUID uniqueness, one open session per tray) live in one place.
-- Declared totals (declared_tags, declared_pieces, declared_net_weight) live in `sublot_targets`, readable only by manager/auditor; `close_sublot` returns only a boolean. Why: blind reconciliation enforced by RLS, not UI.
+- Declared totals (declared_tags, declared_pieces, declared_net_weight) live in `sublot_targets`, readable only by manager/auditor; `close_sublot` returns only a boolean. Declared values are immutable; removals go only through `remove_item`, which logs to immutable `item_removals` and increments `removed_*` (target = declared − removed; tolerance on declared_pieces). Why: blind reconciliation enforced by RLS, full audit of removals.
 - Nothing is hard-deleted: soft-delete columns (`deleted_at/by/reason`, `removed_at`, `superseded_at`). Why: audit trail.
 - Staff writes are queued in IndexedDB (`src/lib/offline.ts`) and replayed as RPCs; station screens overlay pending ops on a cached snapshot (`src/lib/station.ts`). Why: unreliable wifi must never lose work.
 - Tag slots are one row per ser_no and assigned only inside `seal_sublot`. Why: ERP list is a gap list.
