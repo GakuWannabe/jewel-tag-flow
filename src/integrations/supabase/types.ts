@@ -601,12 +601,14 @@ export type Database = {
           created_by: string | null
           entered_net: number | null
           entered_pcs: number | null
+          entered_tags: number | null
           huids_remaining: number | null
           id: string
           passed: boolean
           sublot_id: string
           target_net: number | null
           target_pcs: number | null
+          target_tags: number | null
           tolerance: number | null
         }
         Insert: {
@@ -614,12 +616,14 @@ export type Database = {
           created_by?: string | null
           entered_net?: number | null
           entered_pcs?: number | null
+          entered_tags?: number | null
           huids_remaining?: number | null
           id?: string
           passed: boolean
           sublot_id: string
           target_net?: number | null
           target_pcs?: number | null
+          target_tags?: number | null
           tolerance?: number | null
         }
         Update: {
@@ -627,12 +631,14 @@ export type Database = {
           created_by?: string | null
           entered_net?: number | null
           entered_pcs?: number | null
+          entered_tags?: number | null
           huids_remaining?: number | null
           id?: string
           passed?: boolean
           sublot_id?: string
           target_net?: number | null
           target_pcs?: number | null
+          target_tags?: number | null
           tolerance?: number | null
         }
         Relationships: [
@@ -714,33 +720,39 @@ export type Database = {
       sublot_targets: {
         Row: {
           adjust_net_weight: number
-          adjust_pcs: number
+          adjust_pieces: number
+          adjust_tags: number
           created_at: string
           created_by: string | null
           declared_net_weight: number
-          declared_pcs: number
+          declared_pieces: number
+          declared_tags: number
           sublot_id: string
           updated_at: string | null
           updated_by: string | null
         }
         Insert: {
           adjust_net_weight?: number
-          adjust_pcs?: number
+          adjust_pieces?: number
+          adjust_tags?: number
           created_at?: string
           created_by?: string | null
           declared_net_weight: number
-          declared_pcs: number
+          declared_pieces: number
+          declared_tags: number
           sublot_id: string
           updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
           adjust_net_weight?: number
-          adjust_pcs?: number
+          adjust_pieces?: number
+          adjust_tags?: number
           created_at?: string
           created_by?: string | null
           declared_net_weight?: number
-          declared_pcs?: number
+          declared_pieces?: number
+          declared_tags?: number
           sublot_id?: string
           updated_at?: string | null
           updated_by?: string | null
