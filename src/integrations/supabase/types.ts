@@ -1090,6 +1090,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _is_service: { Args: never; Returns: boolean }
       _require_editable: { Args: { _sublot: string }; Returns: undefined }
       _require_worker: { Args: never; Returns: undefined }
       assign_item_huids: {
