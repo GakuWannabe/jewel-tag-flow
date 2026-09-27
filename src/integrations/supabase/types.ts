@@ -1096,6 +1096,18 @@ export type Database = {
         Args: { p_huids: string[]; p_item: string }
         Returns: undefined
       }
+      check_huids: {
+        Args: { p_huids: string[] }
+        Returns: {
+          assigned_item_id: string
+          compartment_no: number
+          huid: string
+          lot_no: string
+          sublot_id: string
+          sublot_no: number
+          tray_code: string
+        }[]
+      }
       clear_hold: {
         Args: { p_item: string; p_note: string }
         Returns: undefined
@@ -1111,8 +1123,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_huids: {
+        Args: { p_rows: Json; p_sublot: string }
+        Returns: number
+      }
+      import_tag_slots: {
+        Args: { p_headers: Json; p_rows: Json; p_sublot: string }
+        Returns: number
+      }
       is_mgr: { Args: never; Returns: boolean }
       is_mgr_or_aud: { Args: never; Returns: boolean }
+      manager_reopen_sublot: {
+        Args: {
+          p_status: Database["public"]["Enums"]["sublot_status"]
+          p_sublot: string
+        }
+        Returns: undefined
+      }
+      mark_exported: { Args: { p_sublot: string }; Returns: undefined }
       match_photo: {
         Args: { p_item: string; p_name: string; p_path: string }
         Returns: undefined
