@@ -24,6 +24,10 @@ import { Route as AuthenticatedStationIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedStationSessionIdRouteImport } from './routes/_authenticated/station/$sessionId'
 import { Route as AuthenticatedManagerLotsLotIdRouteImport } from './routes/_authenticated/manager/lots.$lotId'
 import { Route as AuthenticatedManagerSublotIdRouteImport } from './routes/_authenticated/manager/sublot.$id'
+import { Route as ApiPublicBatchesSublotIdItemsRouteImport } from './routes/api/public/batches/$sublotId/items'
+import { Route as ApiPublicBatchesSublotIdSealRouteImport } from './routes/api/public/batches/$sublotId/seal'
+import { Route as ApiPublicBatchesSublotIdTagSlotsRouteImport } from './routes/api/public/batches/$sublotId/tag-slots'
+import { Route as ApiPublicBatchesSublotIdItemsSequenceResultRouteImport } from './routes/api/public/batches/$sublotId/items.$sequence.result'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -108,6 +112,30 @@ const AuthenticatedManagerSublotIdRoute =
     path: '/manager/sublot/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicBatchesSublotIdItemsRoute =
+  ApiPublicBatchesSublotIdItemsRouteImport.update({
+    id: '/api/public/batches/$sublotId/items',
+    path: '/api/public/batches/$sublotId/items',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBatchesSublotIdSealRoute =
+  ApiPublicBatchesSublotIdSealRouteImport.update({
+    id: '/api/public/batches/$sublotId/seal',
+    path: '/api/public/batches/$sublotId/seal',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBatchesSublotIdTagSlotsRoute =
+  ApiPublicBatchesSublotIdTagSlotsRouteImport.update({
+    id: '/api/public/batches/$sublotId/tag-slots',
+    path: '/api/public/batches/$sublotId/tag-slots',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBatchesSublotIdItemsSequenceResultRoute =
+  ApiPublicBatchesSublotIdItemsSequenceResultRouteImport.update({
+    id: '/$sequence/result',
+    path: '/$sequence/result',
+    getParentRoute: () => ApiPublicBatchesSublotIdItemsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -124,6 +152,10 @@ export interface FileRoutesByFullPath {
   '/station/': typeof AuthenticatedStationIndexRoute
   '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
+  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
+  '/api/public/batches/$sublotId/items/$sequence/result': typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -140,6 +172,10 @@ export interface FileRoutesByTo {
   '/station': typeof AuthenticatedStationIndexRoute
   '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
+  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
+  '/api/public/batches/$sublotId/items/$sequence/result': typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -158,6 +194,10 @@ export interface FileRoutesById {
   '/_authenticated/station/': typeof AuthenticatedStationIndexRoute
   '/_authenticated/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/_authenticated/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
+  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
+  '/api/public/batches/$sublotId/items/$sequence/result': typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -176,6 +216,10 @@ export interface FileRouteTypes {
     | '/station/'
     | '/manager/lots/$lotId'
     | '/manager/sublot/$id'
+    | '/api/public/batches/$sublotId/items'
+    | '/api/public/batches/$sublotId/seal'
+    | '/api/public/batches/$sublotId/tag-slots'
+    | '/api/public/batches/$sublotId/items/$sequence/result'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -192,6 +236,10 @@ export interface FileRouteTypes {
     | '/station'
     | '/manager/lots/$lotId'
     | '/manager/sublot/$id'
+    | '/api/public/batches/$sublotId/items'
+    | '/api/public/batches/$sublotId/seal'
+    | '/api/public/batches/$sublotId/tag-slots'
+    | '/api/public/batches/$sublotId/items/$sequence/result'
   id:
     | '__root__'
     | '/'
@@ -209,11 +257,18 @@ export interface FileRouteTypes {
     | '/_authenticated/station/'
     | '/_authenticated/manager/lots/$lotId'
     | '/_authenticated/manager/sublot/$id'
+    | '/api/public/batches/$sublotId/items'
+    | '/api/public/batches/$sublotId/seal'
+    | '/api/public/batches/$sublotId/tag-slots'
+    | '/api/public/batches/$sublotId/items/$sequence/result'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ApiPublicBatchesSublotIdItemsRoute: typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  ApiPublicBatchesSublotIdSealRoute: typeof ApiPublicBatchesSublotIdSealRoute
+  ApiPublicBatchesSublotIdTagSlotsRoute: typeof ApiPublicBatchesSublotIdTagSlotsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -323,6 +378,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerSublotIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/batches/$sublotId/items': {
+      id: '/api/public/batches/$sublotId/items'
+      path: '/api/public/batches/$sublotId/items'
+      fullPath: '/api/public/batches/$sublotId/items'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdItemsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/batches/$sublotId/seal': {
+      id: '/api/public/batches/$sublotId/seal'
+      path: '/api/public/batches/$sublotId/seal'
+      fullPath: '/api/public/batches/$sublotId/seal'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdSealRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/batches/$sublotId/tag-slots': {
+      id: '/api/public/batches/$sublotId/tag-slots'
+      path: '/api/public/batches/$sublotId/tag-slots'
+      fullPath: '/api/public/batches/$sublotId/tag-slots'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdTagSlotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/batches/$sublotId/items/$sequence/result': {
+      id: '/api/public/batches/$sublotId/items/$sequence/result'
+      path: '/$sequence/result'
+      fullPath: '/api/public/batches/$sublotId/items/$sequence/result'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdItemsSequenceResultRouteImport
+      parentRoute: typeof ApiPublicBatchesSublotIdItemsRoute
+    }
   }
 }
 
@@ -373,9 +456,28 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiPublicBatchesSublotIdItemsRouteChildren {
+  ApiPublicBatchesSublotIdItemsSequenceResultRoute: typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
+}
+
+const ApiPublicBatchesSublotIdItemsRouteChildren: ApiPublicBatchesSublotIdItemsRouteChildren =
+  {
+    ApiPublicBatchesSublotIdItemsSequenceResultRoute:
+      ApiPublicBatchesSublotIdItemsSequenceResultRoute,
+  }
+
+const ApiPublicBatchesSublotIdItemsRouteWithChildren =
+  ApiPublicBatchesSublotIdItemsRoute._addFileChildren(
+    ApiPublicBatchesSublotIdItemsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ApiPublicBatchesSublotIdItemsRoute:
+    ApiPublicBatchesSublotIdItemsRouteWithChildren,
+  ApiPublicBatchesSublotIdSealRoute: ApiPublicBatchesSublotIdSealRoute,
+  ApiPublicBatchesSublotIdTagSlotsRoute: ApiPublicBatchesSublotIdTagSlotsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
