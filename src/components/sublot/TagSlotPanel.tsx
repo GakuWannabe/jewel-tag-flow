@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { db, rpc, errMsg } from "@/lib/db";
 import { parseTagSlots, type SlotParse } from "@/lib/imports";
 
-export function TagSlotPanel({ sublot, branch, baseCode, declaredPcs, canEdit, onDone }: {
-  sublot: any; branch: string; baseCode: string; declaredPcs?: number; canEdit: boolean; onDone: () => void;
+export function TagSlotPanel({ sublot, branch, baseCode, declaredTags, canEdit, onDone }: {
+  sublot: any; branch: string; baseCode: string; declaredTags?: number; canEdit: boolean; onDone: () => void;
 }) {
   const [p, setP] = useState<SlotParse | null>(null);
   const { data: current = [], refetch } = useQuery({
@@ -56,8 +56,8 @@ export function TagSlotPanel({ sublot, branch, baseCode, declaredPcs, canEdit, o
           </div>
           <p className="text-sm"><b>Gaps ({p.gaps.length}):</b> <span className="num">{p.gaps.length ? p.gaps.join(", ") : "none"}</span></p>
           <p className="text-xs text-muted-foreground">{p.headers.length} columns in file; only COMPCODE, type, IC, ser_no, cmd are read. The full row is kept for the export.</p>
-          {declaredPcs != null && p.count < declaredPcs && (
-            <p className="rounded bg-warning p-2 font-semibold text-warning-foreground">Warning: {p.count} slots available but {declaredPcs} pcs declared.</p>
+          {declaredTags != null && p.count < declaredTags && (
+            <p className="rounded bg-warning p-2 font-semibold text-warning-foreground">Warning: {p.count} slots available but {declaredTags} tags (compartments) declared.</p>
           )}
           {p.errors.length > 0 ? (
             <div className="rounded bg-destructive p-3 text-destructive-foreground"><b>File rejected:</b><ul className="list-disc pl-5">{p.errors.slice(0, 10).map((e) => <li key={e}>{e}</li>)}</ul></div>

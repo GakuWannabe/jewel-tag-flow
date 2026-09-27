@@ -43,7 +43,8 @@ function SublotPage() {
   if (!data?.s) return <AppShell title="Sublot" back="/manager/lots"><p>Loading…</p></AppShell>;
   const { s, target, recon, pool, items, slots } = data;
   const lot = s.lots;
-  const tp = target ? target.declared_pcs + target.adjust_pcs : 0;
+  const tt = target ? target.declared_tags + target.adjust_tags : 0;
+  const tp = target ? target.declared_pieces + target.adjust_pieces : 0;
   const tn = target ? Number(target.declared_net_weight) + Number(target.adjust_net_weight) : 0;
   const enteredPcs = items.reduce((a: number, i: any) => a + i.pcs, 0);
   const enteredNet = items.reduce((a: number, i: any) => a + Number(i.net_weight ?? 0), 0);
@@ -86,17 +87,19 @@ function SublotPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Box title="Pieces"><Cmp a={enteredPcs} b={tp} fmt={(x) => String(x)} /></Box>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Box title="Tags (compartments)"><Cmp a={items.length} b={tt} fmt={(x) => String(x)} /></Box>
+            <Box title="Pieces (HUIDs)"><Cmp a={enteredPcs} b={tp} fmt={(x) => String(x)} /></Box>
             <Box title="Net weight (g)"><Cmp a={enteredNet} b={tn} fmt={fmt3} /></Box>
           </div>
-          {target && (target.adjust_pcs !== 0 || Number(target.adjust_net_weight) !== 0) && (
-            <p className="text-sm text-muted-foreground">Declared {target.declared_pcs} pcs / {fmt3(target.declared_net_weight)} g, adjusted by removals {target.adjust_pcs} pcs / {fmt3(target.adjust_net_weight)} g.</p>
+          {target && (target.adjust_tags !== 0 || target.adjust_pieces !== 0 || Number(target.adjust_net_weight) !== 0) && (
+            <p className="text-sm text-muted-foreground">Declared {target.declared_tags} tags / {target.declared_pieces} pieces / {fmt3(target.declared_net_weight)} g, adjusted by removals {target.adjust_tags} tags / {target.adjust_pieces} pieces / {fmt3(target.adjust_net_weight)} g.</p>
           )}
           {recon && (
             <Box title={`Last reconciliation — ${recon.passed ? "PASS" : "FAIL"}`}>
-              <div className="num grid grid-cols-2 gap-1 text-sm sm:grid-cols-4">
-                <span>Pcs {recon.entered_pcs}/{recon.target_pcs} (Δ {recon.entered_pcs - recon.target_pcs})</span>
+              <div className="num grid grid-cols-2 gap-1 text-sm sm:grid-cols-5">
+                {recon.target_tags != null && <span>Tags {recon.entered_tags}/{recon.target_tags} (Δ {recon.entered_tags - recon.target_tags})</span>}
+                <span>Pieces {recon.entered_pcs}/{recon.target_pcs} (Δ {recon.entered_pcs - recon.target_pcs})</span>
                 <span>Net Δ {fmt3(Number(recon.entered_net) - Number(recon.target_net))} g</span>
                 <span>Tolerance ±{fmt3(recon.tolerance)}</span>
                 <span>HUIDs left {recon.huids_remaining}</span>
@@ -115,11 +118,11 @@ function SublotPage() {
         </TabsContent>
 
         <TabsContent value="tag slots">
-          <TagSlotPanel sublot={s} branch={lot.branches.branch_code} baseCode={s.product_types.base_code} declaredPcs={target?.declared_pcs} canEdit={isMgr && !sealed} onDone={refetch} />
+          <TagSlotPanel sublot={s} branch={lot.branches.branch_code} baseCode={s.product_types.base_code} declaredTags={target?.declared_tags} canEdit={isMgr && !sealed} onDone={refetch} />
         </TabsContent>
         <TabsContent value="huids">
-          <HuidPanel sublot={s} expectedPieces={target ? target.declared_pcs * 1 : undefined} canEdit={isMgr && !sealed} onDone={refetch} />
-          <p className="mt-2 text-xs text-muted-foreground">Declared pcs already count pieces (a pair = 2), so the pool should hold one HUID per declared piece.</p>
+          <HuidPanel sublot={s} expectedPieces={target?.declared_pieces} canEdit={isMgr && !sealed} onDone={refetch} />
+          <p className="mt-2 text-xs text-muted-foreground">The pool should hold exactly one HUID per declared piece.</p>
         </TabsContent>
         <TabsContent value="items"><ItemsPanel sublotId={id} canEdit={isMgr} onChange={refetch} /></TabsContent>
         <TabsContent value="photos">

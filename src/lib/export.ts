@@ -5,10 +5,12 @@ import Papa from "papaparse";
 import { db } from "./db";
 import { fieldValue, loadBatch } from "./batch";
 import type { MapRow } from "./settings";
+import { ERP_HEADERS } from "./erp-template";
 
 export async function buildSheet(sublotId: string, mapping: MapRow[]) {
   const b = await loadBatch(db, sublotId);
-  const headers: string[] = b.sublot.slot_headers ?? ["COMPCODE", "type", "IC", "ser_no", "cmd"];
+  const stored: string[] | null = b.sublot.slot_headers;
+  const headers: string[] = stored && stored.length >= ERP_HEADERS.length ? stored : ERP_HEADERS;
   const itemById = new Map(b.items.map((i: any) => [i.id, i]));
   const slotByItem = new Map(b.slots.map((s: any) => [s.assigned_item_id, s]));
   const aoa: unknown[][] = [headers];
