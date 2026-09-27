@@ -70,12 +70,13 @@ function Lots() {
           <Button type="submit" className="h-12 self-end">Create lot</Button>
         </form>
       )}
+      {lots.length > 0 && <p className="mb-2 text-sm text-muted-foreground">Tap a lot to add sublots and issue them to staff.</p>}
       <div className="space-y-2">
         {lots.map((l: any) => (
           <Link key={l.id} to="/manager/lots/$lotId" params={{ lotId: l.id }} className="flex items-center gap-4 rounded-lg border bg-card p-4 hover:border-primary">
             <div className="num text-xl font-bold">{l.lot_no}</div>
             <div className="flex-1 text-sm text-muted-foreground">{l.branches?.branch_name} · {l.vendors?.name} · {l.purities?.purity_label} · {l.received_date}</div>
-            <div className="text-sm font-semibold">{l.sublots?.length ?? 0} sublot(s)</div>
+            <div className="text-sm font-semibold">{l.sublots?.length ?? 0} sublot(s) · Open →</div>
           </Link>
         ))}
         {lots.length === 0 && <p className="text-muted-foreground">No lots yet.</p>}
