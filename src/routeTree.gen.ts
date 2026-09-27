@@ -16,6 +16,7 @@ import { Route as AuthenticatedManagerLotsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedManagerMasterRouteImport } from './routes/_authenticated/manager/master'
 import { Route as AuthenticatedManagerSettingsRouteImport } from './routes/_authenticated/manager/settings'
 import { Route as AuthenticatedManagerUsersRouteImport } from './routes/_authenticated/manager/users'
+import { Route as AuthenticatedStationIndexRouteImport } from './routes/_authenticated/station/index'
 import { Route as AuthenticatedManagerLotsLotIdRouteImport } from './routes/_authenticated/manager/lots.$lotId'
 import { Route as AuthenticatedManagerSublotIdRouteImport } from './routes/_authenticated/manager/sublot.$id'
 
@@ -57,6 +58,12 @@ const AuthenticatedManagerUsersRoute =
     path: '/manager/users',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedStationIndexRoute =
+  AuthenticatedStationIndexRouteImport.update({
+    id: '/station/',
+    path: '/station/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedManagerLotsLotIdRoute =
   AuthenticatedManagerLotsLotIdRouteImport.update({
     id: '/$lotId',
@@ -77,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/manager/master': typeof AuthenticatedManagerMasterRoute
   '/manager/settings': typeof AuthenticatedManagerSettingsRoute
   '/manager/users': typeof AuthenticatedManagerUsersRoute
+  '/station/': typeof AuthenticatedStationIndexRoute
   '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesByTo {
   '/manager/master': typeof AuthenticatedManagerMasterRoute
   '/manager/settings': typeof AuthenticatedManagerSettingsRoute
   '/manager/users': typeof AuthenticatedManagerUsersRoute
+  '/station': typeof AuthenticatedStationIndexRoute
   '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
 }
@@ -99,6 +108,7 @@ export interface FileRoutesById {
   '/_authenticated/manager/master': typeof AuthenticatedManagerMasterRoute
   '/_authenticated/manager/settings': typeof AuthenticatedManagerSettingsRoute
   '/_authenticated/manager/users': typeof AuthenticatedManagerUsersRoute
+  '/_authenticated/station/': typeof AuthenticatedStationIndexRoute
   '/_authenticated/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/_authenticated/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
 }
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/manager/master'
     | '/manager/settings'
     | '/manager/users'
+    | '/station/'
     | '/manager/lots/$lotId'
     | '/manager/sublot/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/manager/master'
     | '/manager/settings'
     | '/manager/users'
+    | '/station'
     | '/manager/lots/$lotId'
     | '/manager/sublot/$id'
   id:
@@ -132,6 +144,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager/master'
     | '/_authenticated/manager/settings'
     | '/_authenticated/manager/users'
+    | '/_authenticated/station/'
     | '/_authenticated/manager/lots/$lotId'
     | '/_authenticated/manager/sublot/$id'
   fileRoutesById: FileRoutesById
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerUsersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/station/': {
+      id: '/_authenticated/station/'
+      path: '/station'
+      fullPath: '/station/'
+      preLoaderRoute: typeof AuthenticatedStationIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/manager/lots/$lotId': {
       id: '/_authenticated/manager/lots/$lotId'
       path: '/$lotId'
@@ -229,6 +249,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedManagerMasterRoute: typeof AuthenticatedManagerMasterRoute
   AuthenticatedManagerSettingsRoute: typeof AuthenticatedManagerSettingsRoute
   AuthenticatedManagerUsersRoute: typeof AuthenticatedManagerUsersRoute
+  AuthenticatedStationIndexRoute: typeof AuthenticatedStationIndexRoute
   AuthenticatedManagerSublotIdRoute: typeof AuthenticatedManagerSublotIdRoute
 }
 
@@ -238,6 +259,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedManagerMasterRoute: AuthenticatedManagerMasterRoute,
   AuthenticatedManagerSettingsRoute: AuthenticatedManagerSettingsRoute,
   AuthenticatedManagerUsersRoute: AuthenticatedManagerUsersRoute,
+  AuthenticatedStationIndexRoute: AuthenticatedStationIndexRoute,
   AuthenticatedManagerSublotIdRoute: AuthenticatedManagerSublotIdRoute,
 }
 
