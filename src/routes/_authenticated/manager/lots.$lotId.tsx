@@ -35,7 +35,7 @@ function LotDetail() {
     const next = (data?.subs.reduce((a: number, s: any) => Math.max(a, s.sublot_no), 0) ?? 0) + 1;
     const { data: s, error } = await db.from("sublots").insert({ lot_id: lotId, sublot_no: next, product_type_id: f.product_type_id }).select().single();
     if (error) return toast.error(error.message);
-    const { error: e2 } = await db.from("sublot_targets").insert({ sublot_id: s.id, declared_pcs: Number(f.pcs), declared_net_weight: Number(f.net) });
+    const { error: e2 } = await db.from("sublot_targets").insert({ sublot_id: s.id, declared_tags: Number(f.tags), declared_pieces: Number(f.pieces), declared_net_weight: Number(f.net) });
     if (e2) return toast.error(e2.message);
     setF({}); refetch(); toast.success(`Sublot ${next} created`);
   };
@@ -55,13 +55,22 @@ function LotDetail() {
         </div>
       )}
       {has("manager") && m && (
-        <form onSubmit={addSublot} className="mb-4 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-4">
+        <form onSubmit={addSublot} className="mb-4 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-5">
           <div><Label>Product type</Label>
-            <select className="h-12 w-full rounded-md border border-input bg-background px-3" value={f.product_type_id ?? ""} onChange={(e) => setF({ ...f, product_type_id: e.target.value })} required>
+            <select className="h-12 w-full rounded-md border border-input bg-background px-3" value={f.product_type_id ?? ""} onChange={(e) => {
+              const pt = m.productTypes.find((p: any) => p.id === e.target.value);
+              setF({ ...f, product_type_id: e.target.value, pieces: f.tags && pt ? String(Number(f.tags) * pt.default_pcs) : f.pieces });
+            }} required>
               <option value="">—</option>{m.productTypes.map((p: any) => <option key={p.id} value={p.id}>{p.base_code} · {p.name}</option>)}
             </select>
           </div>
-          <div><Label>Declared total pcs</Label><Input className="num h-12" inputMode="numeric" value={f.pcs ?? ""} onChange={(e) => setF({ ...f, pcs: e.target.value })} required /></div>
+          <div><Label>Tags (compartments)</Label><Input className="num h-12" inputMode="numeric" value={f.tags ?? ""} onChange={(e) => {
+            const pt = m.productTypes.find((p: any) => p.id === f.product_type_id);
+            const n = Number(e.target.value);
+            setF({ ...f, tags: e.target.value, pieces: pt && e.target.value && Number.isFinite(n) ? String(n * pt.default_pcs) : f.pieces });
+          }} required /></div>
+          <div><Label>Pieces (HUIDs)</Label><Input className="num h-12" inputMode="numeric" value={f.pieces ?? ""} onChange={(e) => setF({ ...f, pieces: e.target.value })} required />
+            <p className="text-xs text-muted-foreground">Pre-filled as tags × default pcs; override if needed.</p></div>
           <div><Label>Declared net weight (g)</Label><Input className="num h-12" inputMode="decimal" value={f.net ?? ""} onChange={(e) => setF({ ...f, net: e.target.value })} required /></div>
           <Button className="h-12 self-end" type="submit">Add sublot</Button>
         </form>
@@ -72,7 +81,7 @@ function LotDetail() {
             <div className="text-lg font-bold">#{s.sublot_no}</div>
             <div className="font-semibold">{s.product_types.base_code} · {s.product_types.name}</div>
             <StatusBadge status={s.status} />
-            <div className="num ml-auto text-sm">{s.target ? `${s.target.declared_pcs} pcs · ${fmt3(s.target.declared_net_weight)} g` : ""}</div>
+            <div className="num ml-auto text-sm">{s.target ? `${s.target.declared_tags} tags · ${s.target.declared_pieces} pieces · ${fmt3(s.target.declared_net_weight)} g` : ""}</div>
           </Link>
         ))}
       </div>

@@ -31,7 +31,7 @@ export function HuidPanel({ sublot, expectedPieces, canEdit, onDone }: { sublot:
     <div className="space-y-3">
       <div className="rounded-lg border bg-card p-3 text-sm">
         <b>Pool:</b> {pool.length} pieces · <span className="num">{fmt3(poolTotal)} g</span> · {pool.filter((p: any) => !p.assigned_item_id).length} unassigned
-        {expectedPieces != null && <> · expected <b>{expectedPieces}</b> (declared pcs × HUID per tag){pool.length !== expectedPieces && pool.length > 0 && <span className="ml-2 rounded bg-warning px-1 font-bold text-warning-foreground">MISMATCH</span>}</>}
+        {expectedPieces != null && <> · expected <b>{expectedPieces}</b> (declared pieces){pool.length !== expectedPieces && pool.length > 0 && <span className="ml-2 rounded bg-warning px-1 font-bold text-warning-foreground">MISMATCH</span>}</>}
       </div>
       {canEdit && (
         <label className="block cursor-pointer rounded-lg border-2 border-dashed border-input p-6 text-center font-semibold">
