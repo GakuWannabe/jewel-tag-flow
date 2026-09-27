@@ -218,13 +218,3 @@ function SublotPage() {
 const Box = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="space-y-2 rounded-lg border bg-card p-4"><h3 className="font-bold">{title}</h3>{children}</section>
 );
-function Cmp({ a, b, fmt }: { a: number; b: number; fmt: (n: number) => string }) {
-  const d = a - b;
-  return (
-    <div className="num grid grid-cols-3 gap-2 text-center">
-      <div><div className="font-sans text-xs text-muted-foreground">Entered</div><div className="text-2xl font-bold">{fmt(a)}</div></div>
-      <div><div className="font-sans text-xs text-muted-foreground">Target</div><div className="text-2xl font-bold">{fmt(b)}</div></div>
-      <div><div className="font-sans text-xs text-muted-foreground">Variance</div><div className={`text-2xl font-bold ${Math.abs(d) > 0.0005 ? "text-destructive" : "text-success"}`}>{d > 0 ? "+" : ""}{fmt(d)}</div></div>
-    </div>
-  );
-}
