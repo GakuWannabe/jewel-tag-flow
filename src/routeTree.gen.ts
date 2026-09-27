@@ -10,33 +10,265 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedWipRouteImport } from './routes/_authenticated/wip'
+import { Route as AuthenticatedManagerLotsRouteImport } from './routes/_authenticated/manager/lots'
+import { Route as AuthenticatedManagerMasterRouteImport } from './routes/_authenticated/manager/master'
+import { Route as AuthenticatedManagerSettingsRouteImport } from './routes/_authenticated/manager/settings'
+import { Route as AuthenticatedManagerUsersRouteImport } from './routes/_authenticated/manager/users'
+import { Route as AuthenticatedPhotoIndexRouteImport } from './routes/_authenticated/photo/index'
+import { Route as AuthenticatedPhotoSublotIdRouteImport } from './routes/_authenticated/photo/$sublotId'
+import { Route as AuthenticatedStationIndexRouteImport } from './routes/_authenticated/station/index'
+import { Route as AuthenticatedStationSessionIdRouteImport } from './routes/_authenticated/station/$sessionId'
+import { Route as AuthenticatedManagerLotsLotIdRouteImport } from './routes/_authenticated/manager/lots.$lotId'
+import { Route as AuthenticatedManagerSublotIdRouteImport } from './routes/_authenticated/manager/sublot.$id'
+import { Route as ApiPublicBatchesSublotIdItemsRouteImport } from './routes/api/public/batches/$sublotId/items'
+import { Route as ApiPublicBatchesSublotIdSealRouteImport } from './routes/api/public/batches/$sublotId/seal'
+import { Route as ApiPublicBatchesSublotIdTagSlotsRouteImport } from './routes/api/public/batches/$sublotId/tag-slots'
+import { Route as ApiPublicBatchesSublotIdItemsSequenceResultRouteImport } from './routes/api/public/batches/$sublotId/items.$sequence.result'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWipRoute = AuthenticatedWipRouteImport.update({
+  id: '/wip',
+  path: '/wip',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedManagerLotsRoute =
+  AuthenticatedManagerLotsRouteImport.update({
+    id: '/manager/lots',
+    path: '/manager/lots',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedManagerMasterRoute =
+  AuthenticatedManagerMasterRouteImport.update({
+    id: '/manager/master',
+    path: '/manager/master',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedManagerSettingsRoute =
+  AuthenticatedManagerSettingsRouteImport.update({
+    id: '/manager/settings',
+    path: '/manager/settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedManagerUsersRoute =
+  AuthenticatedManagerUsersRouteImport.update({
+    id: '/manager/users',
+    path: '/manager/users',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPhotoIndexRoute = AuthenticatedPhotoIndexRouteImport.update({
+  id: '/photo/',
+  path: '/photo/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPhotoSublotIdRoute =
+  AuthenticatedPhotoSublotIdRouteImport.update({
+    id: '/photo/$sublotId',
+    path: '/photo/$sublotId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedStationIndexRoute =
+  AuthenticatedStationIndexRouteImport.update({
+    id: '/station/',
+    path: '/station/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedStationSessionIdRoute =
+  AuthenticatedStationSessionIdRouteImport.update({
+    id: '/station/$sessionId',
+    path: '/station/$sessionId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedManagerLotsLotIdRoute =
+  AuthenticatedManagerLotsLotIdRouteImport.update({
+    id: '/$lotId',
+    path: '/$lotId',
+    getParentRoute: () => AuthenticatedManagerLotsRoute,
+  } as any)
+const AuthenticatedManagerSublotIdRoute =
+  AuthenticatedManagerSublotIdRouteImport.update({
+    id: '/manager/sublot/$id',
+    path: '/manager/sublot/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicBatchesSublotIdItemsRoute =
+  ApiPublicBatchesSublotIdItemsRouteImport.update({
+    id: '/api/public/batches/$sublotId/items',
+    path: '/api/public/batches/$sublotId/items',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBatchesSublotIdSealRoute =
+  ApiPublicBatchesSublotIdSealRouteImport.update({
+    id: '/api/public/batches/$sublotId/seal',
+    path: '/api/public/batches/$sublotId/seal',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBatchesSublotIdTagSlotsRoute =
+  ApiPublicBatchesSublotIdTagSlotsRouteImport.update({
+    id: '/api/public/batches/$sublotId/tag-slots',
+    path: '/api/public/batches/$sublotId/tag-slots',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBatchesSublotIdItemsSequenceResultRoute =
+  ApiPublicBatchesSublotIdItemsSequenceResultRouteImport.update({
+    id: '/$sequence/result',
+    path: '/$sequence/result',
+    getParentRoute: () => ApiPublicBatchesSublotIdItemsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AuthenticatedAppRoute
+  '/reports': typeof AuthenticatedReportsRoute
+  '/wip': typeof AuthenticatedWipRoute
+  '/manager/lots': typeof AuthenticatedManagerLotsRouteWithChildren
+  '/manager/master': typeof AuthenticatedManagerMasterRoute
+  '/manager/settings': typeof AuthenticatedManagerSettingsRoute
+  '/manager/users': typeof AuthenticatedManagerUsersRoute
+  '/photo/$sublotId': typeof AuthenticatedPhotoSublotIdRoute
+  '/station/$sessionId': typeof AuthenticatedStationSessionIdRoute
+  '/photo/': typeof AuthenticatedPhotoIndexRoute
+  '/station/': typeof AuthenticatedStationIndexRoute
+  '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
+  '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
+  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
+  '/api/public/batches/$sublotId/items/$sequence/result': typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app': typeof AuthenticatedAppRoute
+  '/reports': typeof AuthenticatedReportsRoute
+  '/wip': typeof AuthenticatedWipRoute
+  '/manager/lots': typeof AuthenticatedManagerLotsRouteWithChildren
+  '/manager/master': typeof AuthenticatedManagerMasterRoute
+  '/manager/settings': typeof AuthenticatedManagerSettingsRoute
+  '/manager/users': typeof AuthenticatedManagerUsersRoute
+  '/photo/$sublotId': typeof AuthenticatedPhotoSublotIdRoute
+  '/station/$sessionId': typeof AuthenticatedStationSessionIdRoute
+  '/photo': typeof AuthenticatedPhotoIndexRoute
+  '/station': typeof AuthenticatedStationIndexRoute
+  '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
+  '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
+  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
+  '/api/public/batches/$sublotId/items/$sequence/result': typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_authenticated/app': typeof AuthenticatedAppRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/wip': typeof AuthenticatedWipRoute
+  '/_authenticated/manager/lots': typeof AuthenticatedManagerLotsRouteWithChildren
+  '/_authenticated/manager/master': typeof AuthenticatedManagerMasterRoute
+  '/_authenticated/manager/settings': typeof AuthenticatedManagerSettingsRoute
+  '/_authenticated/manager/users': typeof AuthenticatedManagerUsersRoute
+  '/_authenticated/photo/$sublotId': typeof AuthenticatedPhotoSublotIdRoute
+  '/_authenticated/station/$sessionId': typeof AuthenticatedStationSessionIdRoute
+  '/_authenticated/photo/': typeof AuthenticatedPhotoIndexRoute
+  '/_authenticated/station/': typeof AuthenticatedStationIndexRoute
+  '/_authenticated/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
+  '/_authenticated/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
+  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
+  '/api/public/batches/$sublotId/items/$sequence/result': typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/reports'
+    | '/wip'
+    | '/manager/lots'
+    | '/manager/master'
+    | '/manager/settings'
+    | '/manager/users'
+    | '/photo/$sublotId'
+    | '/station/$sessionId'
+    | '/photo/'
+    | '/station/'
+    | '/manager/lots/$lotId'
+    | '/manager/sublot/$id'
+    | '/api/public/batches/$sublotId/items'
+    | '/api/public/batches/$sublotId/seal'
+    | '/api/public/batches/$sublotId/tag-slots'
+    | '/api/public/batches/$sublotId/items/$sequence/result'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/app'
+    | '/reports'
+    | '/wip'
+    | '/manager/lots'
+    | '/manager/master'
+    | '/manager/settings'
+    | '/manager/users'
+    | '/photo/$sublotId'
+    | '/station/$sessionId'
+    | '/photo'
+    | '/station'
+    | '/manager/lots/$lotId'
+    | '/manager/sublot/$id'
+    | '/api/public/batches/$sublotId/items'
+    | '/api/public/batches/$sublotId/seal'
+    | '/api/public/batches/$sublotId/tag-slots'
+    | '/api/public/batches/$sublotId/items/$sequence/result'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/app'
+    | '/_authenticated/reports'
+    | '/_authenticated/wip'
+    | '/_authenticated/manager/lots'
+    | '/_authenticated/manager/master'
+    | '/_authenticated/manager/settings'
+    | '/_authenticated/manager/users'
+    | '/_authenticated/photo/$sublotId'
+    | '/_authenticated/station/$sessionId'
+    | '/_authenticated/photo/'
+    | '/_authenticated/station/'
+    | '/_authenticated/manager/lots/$lotId'
+    | '/_authenticated/manager/sublot/$id'
+    | '/api/public/batches/$sublotId/items'
+    | '/api/public/batches/$sublotId/seal'
+    | '/api/public/batches/$sublotId/tag-slots'
+    | '/api/public/batches/$sublotId/items/$sequence/result'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ApiPublicBatchesSublotIdItemsRoute: typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
+  ApiPublicBatchesSublotIdSealRoute: typeof ApiPublicBatchesSublotIdSealRoute
+  ApiPublicBatchesSublotIdTagSlotsRoute: typeof ApiPublicBatchesSublotIdTagSlotsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +280,204 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app': {
+      id: '/_authenticated/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/wip': {
+      id: '/_authenticated/wip'
+      path: '/wip'
+      fullPath: '/wip'
+      preLoaderRoute: typeof AuthenticatedWipRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manager/lots': {
+      id: '/_authenticated/manager/lots'
+      path: '/manager/lots'
+      fullPath: '/manager/lots'
+      preLoaderRoute: typeof AuthenticatedManagerLotsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manager/master': {
+      id: '/_authenticated/manager/master'
+      path: '/manager/master'
+      fullPath: '/manager/master'
+      preLoaderRoute: typeof AuthenticatedManagerMasterRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manager/settings': {
+      id: '/_authenticated/manager/settings'
+      path: '/manager/settings'
+      fullPath: '/manager/settings'
+      preLoaderRoute: typeof AuthenticatedManagerSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manager/users': {
+      id: '/_authenticated/manager/users'
+      path: '/manager/users'
+      fullPath: '/manager/users'
+      preLoaderRoute: typeof AuthenticatedManagerUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/photo/': {
+      id: '/_authenticated/photo/'
+      path: '/photo'
+      fullPath: '/photo/'
+      preLoaderRoute: typeof AuthenticatedPhotoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/photo/$sublotId': {
+      id: '/_authenticated/photo/$sublotId'
+      path: '/photo/$sublotId'
+      fullPath: '/photo/$sublotId'
+      preLoaderRoute: typeof AuthenticatedPhotoSublotIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/station/': {
+      id: '/_authenticated/station/'
+      path: '/station'
+      fullPath: '/station/'
+      preLoaderRoute: typeof AuthenticatedStationIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/station/$sessionId': {
+      id: '/_authenticated/station/$sessionId'
+      path: '/station/$sessionId'
+      fullPath: '/station/$sessionId'
+      preLoaderRoute: typeof AuthenticatedStationSessionIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manager/lots/$lotId': {
+      id: '/_authenticated/manager/lots/$lotId'
+      path: '/$lotId'
+      fullPath: '/manager/lots/$lotId'
+      preLoaderRoute: typeof AuthenticatedManagerLotsLotIdRouteImport
+      parentRoute: typeof AuthenticatedManagerLotsRoute
+    }
+    '/_authenticated/manager/sublot/$id': {
+      id: '/_authenticated/manager/sublot/$id'
+      path: '/manager/sublot/$id'
+      fullPath: '/manager/sublot/$id'
+      preLoaderRoute: typeof AuthenticatedManagerSublotIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/batches/$sublotId/items': {
+      id: '/api/public/batches/$sublotId/items'
+      path: '/api/public/batches/$sublotId/items'
+      fullPath: '/api/public/batches/$sublotId/items'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdItemsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/batches/$sublotId/seal': {
+      id: '/api/public/batches/$sublotId/seal'
+      path: '/api/public/batches/$sublotId/seal'
+      fullPath: '/api/public/batches/$sublotId/seal'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdSealRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/batches/$sublotId/tag-slots': {
+      id: '/api/public/batches/$sublotId/tag-slots'
+      path: '/api/public/batches/$sublotId/tag-slots'
+      fullPath: '/api/public/batches/$sublotId/tag-slots'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdTagSlotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/batches/$sublotId/items/$sequence/result': {
+      id: '/api/public/batches/$sublotId/items/$sequence/result'
+      path: '/$sequence/result'
+      fullPath: '/api/public/batches/$sublotId/items/$sequence/result'
+      preLoaderRoute: typeof ApiPublicBatchesSublotIdItemsSequenceResultRouteImport
+      parentRoute: typeof ApiPublicBatchesSublotIdItemsRoute
+    }
   }
 }
 
+interface AuthenticatedManagerLotsRouteChildren {
+  AuthenticatedManagerLotsLotIdRoute: typeof AuthenticatedManagerLotsLotIdRoute
+}
+
+const AuthenticatedManagerLotsRouteChildren: AuthenticatedManagerLotsRouteChildren =
+  {
+    AuthenticatedManagerLotsLotIdRoute: AuthenticatedManagerLotsLotIdRoute,
+  }
+
+const AuthenticatedManagerLotsRouteWithChildren =
+  AuthenticatedManagerLotsRoute._addFileChildren(
+    AuthenticatedManagerLotsRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAppRoute: typeof AuthenticatedAppRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedWipRoute: typeof AuthenticatedWipRoute
+  AuthenticatedManagerLotsRoute: typeof AuthenticatedManagerLotsRouteWithChildren
+  AuthenticatedManagerMasterRoute: typeof AuthenticatedManagerMasterRoute
+  AuthenticatedManagerSettingsRoute: typeof AuthenticatedManagerSettingsRoute
+  AuthenticatedManagerUsersRoute: typeof AuthenticatedManagerUsersRoute
+  AuthenticatedPhotoSublotIdRoute: typeof AuthenticatedPhotoSublotIdRoute
+  AuthenticatedStationSessionIdRoute: typeof AuthenticatedStationSessionIdRoute
+  AuthenticatedPhotoIndexRoute: typeof AuthenticatedPhotoIndexRoute
+  AuthenticatedStationIndexRoute: typeof AuthenticatedStationIndexRoute
+  AuthenticatedManagerSublotIdRoute: typeof AuthenticatedManagerSublotIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAppRoute: AuthenticatedAppRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedWipRoute: AuthenticatedWipRoute,
+  AuthenticatedManagerLotsRoute: AuthenticatedManagerLotsRouteWithChildren,
+  AuthenticatedManagerMasterRoute: AuthenticatedManagerMasterRoute,
+  AuthenticatedManagerSettingsRoute: AuthenticatedManagerSettingsRoute,
+  AuthenticatedManagerUsersRoute: AuthenticatedManagerUsersRoute,
+  AuthenticatedPhotoSublotIdRoute: AuthenticatedPhotoSublotIdRoute,
+  AuthenticatedStationSessionIdRoute: AuthenticatedStationSessionIdRoute,
+  AuthenticatedPhotoIndexRoute: AuthenticatedPhotoIndexRoute,
+  AuthenticatedStationIndexRoute: AuthenticatedStationIndexRoute,
+  AuthenticatedManagerSublotIdRoute: AuthenticatedManagerSublotIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
+interface ApiPublicBatchesSublotIdItemsRouteChildren {
+  ApiPublicBatchesSublotIdItemsSequenceResultRoute: typeof ApiPublicBatchesSublotIdItemsSequenceResultRoute
+}
+
+const ApiPublicBatchesSublotIdItemsRouteChildren: ApiPublicBatchesSublotIdItemsRouteChildren =
+  {
+    ApiPublicBatchesSublotIdItemsSequenceResultRoute:
+      ApiPublicBatchesSublotIdItemsSequenceResultRoute,
+  }
+
+const ApiPublicBatchesSublotIdItemsRouteWithChildren =
+  ApiPublicBatchesSublotIdItemsRoute._addFileChildren(
+    ApiPublicBatchesSublotIdItemsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ApiPublicBatchesSublotIdItemsRoute:
+    ApiPublicBatchesSublotIdItemsRouteWithChildren,
+  ApiPublicBatchesSublotIdSealRoute: ApiPublicBatchesSublotIdSealRoute,
+  ApiPublicBatchesSublotIdTagSlotsRoute: ApiPublicBatchesSublotIdTagSlotsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
