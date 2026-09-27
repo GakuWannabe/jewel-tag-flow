@@ -150,6 +150,12 @@ function SublotPage() {
               </div>
               {busy && <p className="text-sm font-semibold">Working: {busy}…</p>}
               {s.status === "sealed" && <Button variant="outline" onClick={() => run("exp", () => rpc("mark_exported", { p_sublot: id }))}>Mark as exported</Button>}
+              <Button variant="outline" onClick={() => run("clear", async () => {
+                if (!confirm("Physically emptied the trays? This frees them for the next batch.")) return;
+                const { data: ss } = await db.from("tray_sessions").select("id").eq("sublot_id", id).neq("status", "cleared");
+                for (const x of ss ?? []) await rpc("clear_tray_session", { p_session: x.id });
+                toast.success("Trays cleared");
+              })}>Clear trays for reuse</Button>
               <p className="text-xs text-muted-foreground">Mode 2 bot API: <code className="num">/api/public/batches/{id}/items</code> with header <code>x-api-key</code>.</p>
             </Box>
           )}
