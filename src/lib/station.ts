@@ -118,7 +118,8 @@ export function useStation(sessionId: string) {
 
   const snap = useMemo(() => {
     if (!base) return null;
-    return queue.filter((o) => o.createdAt > base.fetchedAt - 1 || true).reduce(applyOp, base);
+    // anything still queued has not reached the server yet — overlay it
+    return queue.reduce(applyOp, base);
   }, [base, queue]);
 
   const run = useCallback(
