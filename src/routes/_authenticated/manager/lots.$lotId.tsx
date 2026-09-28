@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { db, fmt3 } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
-import { useMasters } from "./lots";
+import { useMasters } from "./lots.index";
 
 export const Route = createFileRoute("/_authenticated/manager/lots/$lotId")({
   head: () => ({ meta: [{ title: "Lot — Tagging Line" }, { name: "description", content: "Lot detail and sublots." }] }),

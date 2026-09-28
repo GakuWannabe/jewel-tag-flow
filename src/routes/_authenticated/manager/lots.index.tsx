@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 
-export const Route = createFileRoute("/_authenticated/manager/lots")({
+export const Route = createFileRoute("/_authenticated/manager/lots/")({
   head: () => ({ meta: [{ title: "Lots — Tagging Line" }, { name: "description", content: "Create lots and sublots." }] }),
   component: Lots,
 });
