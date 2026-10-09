@@ -13,7 +13,9 @@
 
 - Staff/photo writes go only through SECURITY DEFINER RPCs (open_tray_session, set_compartment, save_weight, assign_item_huids, …); tables grant SELECT only. Why: business rules (locks, HUID uniqueness, one open session per tray) live in one place.
 - Declared totals (declared_tags, declared_pieces, declared_net_weight) live in `sublot_targets`, readable only by manager/auditor; `close_sublot` returns only a boolean. Declared values are immutable; removals go only through `remove_item`, which logs to immutable `item_removals` and increments `removed_*` (target = declared − removed; tolerance on declared_pieces). Why: blind reconciliation enforced by RLS, full audit of removals.
-- Nothing is hard-deleted: soft-delete columns (`deleted_at/by/reason`, `removed_at`, `superseded_at`). Why: audit trail.
+- Nothing is hard-deleted except whole lots via manager-only `delete_lot` (typed DELETE; logs to `lot_deletions`, purges via `app.purge` session flag). Everything else uses soft-delete columns. Why: audit trail, with an explicit manager escape hatch.
+- Station screen is a step flow (`src/components/station/steps-*.tsx`); it live-refreshes via realtime on items/huid_pool/item_huids/tag_slots so several staff can share a sublot. Tag numbers/HUID lists can be read from images/PDFs by `src/lib/ocr.functions.ts` (AI gateway), always reviewed by the user before saving.
+- Who-did-what comes from `station_events` (user_id defaults to auth.uid()) plus *_by columns. Why: one activity source for the manager view.
 - Staff writes are queued in IndexedDB (`src/lib/offline.ts`) and replayed as RPCs; station screens overlay pending ops on a cached snapshot (`src/lib/station.ts`). Why: unreliable wifi must never lose work.
 - Tag slots are one row per ser_no and assigned only inside `seal_sublot`. Why: ERP list is a gap list.
 - `src/lib/batch.ts` builds the ordered batch for both manual export and the bot API (`/api/public/batches/*`, x-api-key hashed in `bot_clients`). Why: both modes read the same records.

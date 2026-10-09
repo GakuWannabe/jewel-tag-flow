@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db } from "./db";
 import { enqueue, onFlushed, snapGet, snapSet, useSync, type Op } from "./offline";
 import type { Item, PoolRow } from "./types";
@@ -7,26 +7,30 @@ import type { Item, PoolRow } from "./types";
 export interface Snap {
   session: { id: string; status: string; station: string; sublot_id: string };
   tray: { tray_code: string; rows: number; columns: number; compartment_count: number };
-  sublot: { id: string; status: string; sublot_no: number; lot_no: string; base_code: string; product_name: string; default_pcs: number };
+  sublot: { id: string; status: string; sublot_no: number; lot_no: string; branch_code: string; base_code: string; product_name: string; default_pcs: number };
   items: Item[];
   pool: PoolRow[];
   itemHuids: Record<string, string[]>;
   sublotGross: number[]; // gross weights of OTHER sessions' items, for the running average
+  tagNumbers: number[]; // current (non-superseded) tag slots for the sublot
+  tagsLeft: number | null; // products of this sublot not yet placed in any tray
   fetchedAt: number;
 }
 
 async function fetchSnap(sessionId: string): Promise<Snap> {
   const { data: s, error } = await db
     .from("tray_sessions")
-    .select("id,status,station,sublot_id, trays(tray_code,rows,columns,compartment_count), sublots(id,status,sublot_no, lots(lot_no), product_types(base_code,name,default_pcs))")
+    .select("id,status,station,sublot_id, trays(tray_code,rows,columns,compartment_count), sublots(id,status,sublot_no, lots(lot_no, branches(branch_code)), product_types(base_code,name,default_pcs))")
     .eq("id", sessionId)
     .single();
   if (error) throw new Error(error.message);
-  const [items, pool, ih, others] = await Promise.all([
+  const [items, pool, ih, others, tags, left] = await Promise.all([
     db.from("items").select("*").eq("tray_session_id", sessionId).is("deleted_at", null),
-    db.from("huid_pool").select("id,sublot_id,huid,piece_weight,assigned_item_id,deleted_at").eq("sublot_id", s.sublot_id).is("deleted_at", null),
+    db.from("huid_pool").select("id,sublot_id,huid,piece_weight,assigned_item_id,deleted_at").eq("sublot_id", s.sublot_id).is("deleted_at", null).order("created_at"),
     db.from("item_huids").select("item_id,position,huid_pool(huid), items!inner(sublot_id)").is("removed_at", null).eq("items.sublot_id", s.sublot_id),
     db.from("items").select("gross_weight").eq("sublot_id", s.sublot_id).neq("tray_session_id", sessionId).is("deleted_at", null).not("gross_weight", "is", null),
+    db.from("tag_slots").select("ser_no").eq("sublot_id", s.sublot_id).is("superseded_at", null).order("ser_no"),
+    db.rpc("tags_left_to_load", { p_sublot: s.sublot_id }),
   ]);
   const itemHuids: Record<string, string[]> = {};
   for (const r of (ih.data ?? []).sort((a: any, b: any) => a.position - b.position)) (itemHuids[r.item_id] ??= []).push(r.huid_pool.huid);
@@ -35,12 +39,15 @@ async function fetchSnap(sessionId: string): Promise<Snap> {
     tray: s.trays,
     sublot: {
       id: s.sublots.id, status: s.sublots.status, sublot_no: s.sublots.sublot_no, lot_no: s.sublots.lots.lot_no,
+      branch_code: s.sublots.lots.branches?.branch_code ?? "",
       base_code: s.sublots.product_types.base_code, product_name: s.sublots.product_types.name, default_pcs: s.sublots.product_types.default_pcs,
     },
     items: items.data ?? [],
     pool: pool.data ?? [],
     itemHuids,
     sublotGross: (others.data ?? []).map((x: any) => Number(x.gross_weight)),
+    tagNumbers: (tags.data ?? []).map((t: any) => t.ser_no),
+    tagsLeft: typeof left.data === "number" ? left.data : null,
     fetchedAt: Date.now(),
   };
 }
@@ -60,10 +67,19 @@ export function applyOp(snap: Snap, op: Op): Snap {
           ic: null, ser_no: null, actual_ser_no: null, photo_filename: null, photo_url: null, source_photo_name: null,
           hold_flag: null, hold_note: null, deleted_at: null, weighed_at: null, photo_matched_at: null,
         });
+        if (s.tagsLeft != null) s.tagsLeft = Math.max(0, s.tagsLeft - 1);
       } else if (!a.p_occupied && ex && ex.gross_weight == null) {
         s.items = s.items.filter((i) => i !== ex);
+        if (s.tagsLeft != null) s.tagsLeft += 1;
       }
       s.session.status = s.items.length ? "loaded" : "empty";
+      return s;
+    }
+    case "move_item": {
+      const it = s.items.find((i) => i.id === a.p_item);
+      if (!it) return snap;
+      const from = it.compartment_no;
+      s.items = s.items.map((i) => i.id === a.p_item ? { ...i, compartment_no: a.p_to } : i.compartment_no === a.p_to ? { ...i, compartment_no: from } : i);
       return s;
     }
     case "start_weighing": s.session.station = "weighing"; return s;
@@ -111,10 +127,26 @@ export function useStation(sessionId: string) {
   }, [sessionId]);
 
   useEffect(() => {
-    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? c); });
+    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? { ...c, tagNumbers: c.tagNumbers ?? [], tagsLeft: c.tagsLeft ?? null }); });
     void refresh();
     return onFlushed(() => void refresh());
   }, [sessionId, refresh]);
+
+  // Live updates: another staff member weighing or matching HUIDs on the same sublot shows up here.
+  const sublotId = base?.sublot.id;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!sublotId) return;
+    const kick = () => { if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => void refresh(), 350); };
+    const ch = db.channel(`station-${sessionId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "items", filter: `sublot_id=eq.${sublotId}` }, kick)
+      .on("postgres_changes", { event: "*", schema: "public", table: "huid_pool", filter: `sublot_id=eq.${sublotId}` }, kick)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tag_slots", filter: `sublot_id=eq.${sublotId}` }, kick)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tray_sessions", filter: `id=eq.${sessionId}` }, kick)
+      .on("postgres_changes", { event: "*", schema: "public", table: "item_huids" }, kick)
+      .subscribe();
+    return () => { if (timer.current) clearTimeout(timer.current); void db.removeChannel(ch); };
+  }, [sublotId, sessionId, refresh]);
 
   const snap = useMemo(() => {
     if (!base) return null;

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
-import { Scale, Camera, Package, Database, Users, Settings, Activity, BarChart3 } from "lucide-react";
+import { Scale, Camera, Package, Database, Users, Settings, Activity, BarChart3, History } from "lucide-react";
 import type { Role } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/app")({
@@ -15,6 +15,7 @@ const TILES: { to: string; label: string; sub: string; icon: typeof Scale; roles
   { to: "/manager/lots", label: "Lots & sublots", sub: "Create · import · seal · export", icon: Package, roles: ["manager", "auditor"] },
   { to: "/wip", label: "WIP dashboard", sub: "Live tray status", icon: Activity, roles: ["manager", "auditor"] },
   { to: "/reports", label: "Throughput", sub: "Items per hour", icon: BarChart3, roles: ["manager", "auditor"] },
+  { to: "/manager/activity", label: "Who did what", sub: "Weights · HUIDs · moves by user", icon: History, roles: ["manager", "auditor"] },
   { to: "/manager/master", label: "Master data", sub: "Branches · vendors · trays", icon: Database, roles: ["manager", "auditor"] },
   { to: "/manager/users", label: "Users", sub: "Staff & PINs", icon: Users, roles: ["manager"] },
   { to: "/manager/settings", label: "Settings", sub: "Tolerance · export map · bots", icon: Settings, roles: ["manager"] },

@@ -474,6 +474,30 @@ export type Database = {
           },
         ]
       }
+      lot_deletions: {
+        Row: {
+          deleted_at: string
+          deleted_by: string | null
+          id: string
+          lot_no: string
+          summary: Json | null
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          lot_no: string
+          summary?: Json | null
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          lot_no?: string
+          summary?: Json | null
+        }
+        Relationships: []
+      }
       lots: {
         Row: {
           branch_id: string
@@ -1175,6 +1199,7 @@ export type Database = {
         Args: { p_huids: string[]; p_item: string }
         Returns: undefined
       }
+      auto_load: { Args: { p_session: string }; Returns: number }
       check_huids: {
         Args: { p_huids: string[] }
         Returns: {
@@ -1194,6 +1219,10 @@ export type Database = {
       clear_tray_session: { Args: { p_session: string }; Returns: undefined }
       close_sublot: { Args: { p_sublot: string }; Returns: boolean }
       close_tray_session: { Args: { p_session: string }; Returns: undefined }
+      delete_lot: {
+        Args: { p_confirm: string; p_lot: string }
+        Returns: string[]
+      }
       has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -1204,6 +1233,10 @@ export type Database = {
       }
       import_huids: {
         Args: { p_rows: Json; p_sublot: string }
+        Returns: number
+      }
+      import_tag_numbers: {
+        Args: { p_ser_nos: number[]; p_sublot: string }
         Returns: number
       }
       import_tag_slots: {
@@ -1224,6 +1257,7 @@ export type Database = {
         Args: { p_item: string; p_name: string; p_path: string }
         Returns: undefined
       }
+      move_item: { Args: { p_item: string; p_to: number }; Returns: undefined }
       open_tray_session: {
         Args: { p_sublot: string; p_tray: string }
         Returns: string
@@ -1262,6 +1296,7 @@ export type Database = {
         Returns: undefined
       }
       start_weighing: { Args: { p_session: string }; Returns: undefined }
+      tags_left_to_load: { Args: { p_sublot: string }; Returns: number }
       unassign_item_huids: { Args: { p_item: string }; Returns: undefined }
     }
     Enums: {
