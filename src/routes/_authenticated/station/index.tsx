@@ -10,11 +10,13 @@ import { snapGet, snapSet } from "@/lib/offline";
 
 export const Route = createFileRoute("/_authenticated/station/")({
   head: () => ({ meta: [{ title: "Tray station — Tagging Line" }, { name: "description", content: "Pick the packet and tray." }] }),
+  validateSearch: (s: Record<string, unknown>): { sublot?: string } => (typeof s.sublot === "string" ? { sublot: s.sublot } : {}),
   component: StationPick,
 });
 
 function StationPick() {
   const nav = useNavigate();
+  const { sublot: preselect } = Route.useSearch();
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<any>(null);
   const [cached, setCached] = useState<any>(null);
@@ -34,6 +36,9 @@ function StationPick() {
     },
   });
   const d = data ?? cached;
+  useEffect(() => {
+    if (preselect && !picked && d?.sublots) { const s = d.sublots.find((x: any) => x.id === preselect); if (s) setPicked(s); }
+  }, [preselect, d, picked]);
   const list = (d?.sublots ?? []).filter((s: any) => !q || s.lots.lot_no.toUpperCase().includes(q.toUpperCase()));
 
   const openTray = async (tray: any) => {
