@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedWipRouteImport } from './routes/_authenticated/wip'
+import { Route as AuthenticatedManagerActivityRouteImport } from './routes/_authenticated/manager/activity'
 import { Route as AuthenticatedManagerMasterRouteImport } from './routes/_authenticated/manager/master'
 import { Route as AuthenticatedManagerSettingsRouteImport } from './routes/_authenticated/manager/settings'
 import { Route as AuthenticatedManagerUsersRouteImport } from './routes/_authenticated/manager/users'
@@ -53,6 +54,12 @@ const AuthenticatedWipRoute = AuthenticatedWipRouteImport.update({
   path: '/wip',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedManagerActivityRoute =
+  AuthenticatedManagerActivityRouteImport.update({
+    id: '/manager/activity',
+    path: '/manager/activity',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedManagerMasterRoute =
   AuthenticatedManagerMasterRouteImport.update({
     id: '/manager/master',
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/wip': typeof AuthenticatedWipRoute
+  '/manager/activity': typeof AuthenticatedManagerActivityRoute
   '/manager/master': typeof AuthenticatedManagerMasterRoute
   '/manager/settings': typeof AuthenticatedManagerSettingsRoute
   '/manager/users': typeof AuthenticatedManagerUsersRoute
@@ -162,6 +170,7 @@ export interface FileRoutesByTo {
   '/app': typeof AuthenticatedAppRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/wip': typeof AuthenticatedWipRoute
+  '/manager/activity': typeof AuthenticatedManagerActivityRoute
   '/manager/master': typeof AuthenticatedManagerMasterRoute
   '/manager/settings': typeof AuthenticatedManagerSettingsRoute
   '/manager/users': typeof AuthenticatedManagerUsersRoute
@@ -184,6 +193,7 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/wip': typeof AuthenticatedWipRoute
+  '/_authenticated/manager/activity': typeof AuthenticatedManagerActivityRoute
   '/_authenticated/manager/master': typeof AuthenticatedManagerMasterRoute
   '/_authenticated/manager/settings': typeof AuthenticatedManagerSettingsRoute
   '/_authenticated/manager/users': typeof AuthenticatedManagerUsersRoute
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reports'
     | '/wip'
+    | '/manager/activity'
     | '/manager/master'
     | '/manager/settings'
     | '/manager/users'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reports'
     | '/wip'
+    | '/manager/activity'
     | '/manager/master'
     | '/manager/settings'
     | '/manager/users'
@@ -247,6 +259,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/_authenticated/reports'
     | '/_authenticated/wip'
+    | '/_authenticated/manager/activity'
     | '/_authenticated/manager/master'
     | '/_authenticated/manager/settings'
     | '/_authenticated/manager/users'
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/wip'
       fullPath: '/wip'
       preLoaderRoute: typeof AuthenticatedWipRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manager/activity': {
+      id: '/_authenticated/manager/activity'
+      path: '/manager/activity'
+      fullPath: '/manager/activity'
+      preLoaderRoute: typeof AuthenticatedManagerActivityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/manager/master': {
@@ -413,6 +433,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedWipRoute: typeof AuthenticatedWipRoute
+  AuthenticatedManagerActivityRoute: typeof AuthenticatedManagerActivityRoute
   AuthenticatedManagerMasterRoute: typeof AuthenticatedManagerMasterRoute
   AuthenticatedManagerSettingsRoute: typeof AuthenticatedManagerSettingsRoute
   AuthenticatedManagerUsersRoute: typeof AuthenticatedManagerUsersRoute
@@ -429,6 +450,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedWipRoute: AuthenticatedWipRoute,
+  AuthenticatedManagerActivityRoute: AuthenticatedManagerActivityRoute,
   AuthenticatedManagerMasterRoute: AuthenticatedManagerMasterRoute,
   AuthenticatedManagerSettingsRoute: AuthenticatedManagerSettingsRoute,
   AuthenticatedManagerUsersRoute: AuthenticatedManagerUsersRoute,
