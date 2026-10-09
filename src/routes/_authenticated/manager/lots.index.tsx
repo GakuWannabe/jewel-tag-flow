@@ -7,8 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { db } from "@/lib/db";
+import { db, rpc, errMsg } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
+import { Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/manager/lots/")({
   head: () => ({ meta: [{ title: "Lots — Tagging Line" }, { name: "description", content: "Create lots and sublots." }] }),
@@ -41,6 +45,9 @@ function Lots() {
     queryFn: async () => (await db.from("lots").select("*, branches(branch_code,branch_name), vendors(code,name), purities(purity_label), sublots(id,status)").is("deleted_at", null).order("created_at", { ascending: false })).data ?? [],
   });
   const [open, setOpen] = useState(false);
+  const [del, setDel] = useState<any>(null);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
   const [f, setF] = useState<any>({ making_type: "per_gram", received_date: new Date().toISOString().slice(0, 10), wastage_pct: "0", making_value: "0" });
 
   const submit = async (e: React.FormEvent) => {
@@ -73,14 +80,46 @@ function Lots() {
       {lots.length > 0 && <p className="mb-2 text-sm text-muted-foreground">Tap a lot to add sublots and issue them to staff.</p>}
       <div className="space-y-2">
         {lots.map((l: any) => (
-          <Link key={l.id} to="/manager/lots/$lotId" params={{ lotId: l.id }} className="flex items-center gap-4 rounded-lg border bg-card p-4 hover:border-primary">
-            <div className="num text-xl font-bold">{l.lot_no}</div>
-            <div className="flex-1 text-sm text-muted-foreground">{l.branches?.branch_name} · {l.vendors?.name} · {l.purities?.purity_label} · {l.received_date}</div>
-            <div className="text-sm font-semibold">{l.sublots?.length ?? 0} sublot(s) · Open →</div>
-          </Link>
+          <div key={l.id} className="flex items-stretch gap-2">
+            <Link to="/manager/lots/$lotId" params={{ lotId: l.id }} className="flex flex-1 items-center gap-4 rounded-lg border bg-card p-4 hover:border-primary">
+              <div className="num text-xl font-bold">{l.lot_no}</div>
+              <div className="flex-1 text-sm text-muted-foreground">{l.branches?.branch_name} · {l.vendors?.name} · {l.purities?.purity_label} · {l.received_date}</div>
+              <div className="text-sm font-semibold">{l.sublots?.length ?? 0} sublot(s) · Open →</div>
+            </Link>
+            {has("manager") && (
+              <button type="button" aria-label={`Delete lot ${l.lot_no}`} onClick={() => { setDel(l); setTyped(""); }}
+                className="flex w-14 items-center justify-center rounded-lg border bg-card text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                <Trash2 className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         ))}
         {lots.length === 0 && <p className="text-muted-foreground">No lots yet.</p>}
       </div>
+
+      <AlertDialog open={!!del} onOpenChange={(o) => !o && setDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete lot {del?.lot_no}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              This erases the lot, all its sublots, weights, HUIDs, tag numbers and photos for good. It cannot be undone. Its trays become free.
+              <br /><br />Type <b>DELETE</b> to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input autoFocus className="h-12 text-lg" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="DELETE" />
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-12">Cancel</AlertDialogCancel>
+            <Button variant="destructive" className="h-12" disabled={typed !== "DELETE" || busy} onClick={async () => {
+              setBusy(true);
+              try {
+                const photos = await rpc<string[]>("delete_lot", { p_lot: del.id, p_confirm: typed });
+                if (photos?.length) await db.storage.from("photos").remove(photos).catch(() => null);
+                toast.success(`Lot ${del.lot_no} deleted`); setDel(null); refetch();
+              } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
+            }}>Delete forever</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
