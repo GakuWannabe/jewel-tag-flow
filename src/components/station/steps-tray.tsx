@@ -1,0 +1,410 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
+import { Move, Wand2, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Keypad } from "./Keypad";
+import { TrayGrid, Legend, type CellState } from "./TrayGrid";
+import type { useStation } from "@/lib/station";
+import { useSync } from "@/lib/offline";
+import { db, rpc, errMsg, fmt3 } from "@/lib/db";
+import { suggestHuids, hasConfusable, normHuid, validHuid } from "@/lib/huid-match";
+import { HOLD_LABEL, type HoldFlag, type Item } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+type Station = ReturnType<typeof useStation>;
+export type Snap = NonNullable<Station["snap"]>;
+export type StepKey = "tags" | "load" | "weigh" | "huids" | "match" | "finish";
+export interface StepProps { snap: Snap; run: Station["run"]; refresh: Station["refresh"]; locked: boolean; go: (s: StepKey) => void }
+
+const pad = (n: number) => String(n).padStart(2, "0");
+export const huidsDone = (snap: Snap, i: Item) => (snap.itemHuids[i.id]?.length ?? 0) === i.pcs;
+const sortedItems = (snap: Snap) => [...snap.items].sort((a, b) => a.compartment_no - b.compartment_no);
+
+function Grid({ snap, stateOf, selected, onTap, sub, editMode, onMove }: { snap: Snap; stateOf: (n: number) => CellState; selected?: number | null; onTap: (n: number) => void; sub?: (n: number) => string | null; editMode?: boolean; onMove?: (a: number, b: number) => void }) {
+  return <TrayGrid rows={snap.tray.rows} columns={snap.tray.columns} trayCode={snap.tray.tray_code} stateOf={stateOf} selected={selected} onTap={onTap} sub={sub} editMode={editMode} onMove={onMove} />;
+}
+
+function NextTrayBanner({ snap }: { snap: Snap }) {
+  if (!snap.tagsLeft) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-info p-3 text-info-foreground">
+      <span className="text-lg font-bold">{snap.tagsLeft} more product{snap.tagsLeft > 1 ? "s" : ""} of this sublot need another tray.</span>
+      <Link to="/station" search={{ sublot: snap.sublot.id }} className="ml-auto rounded-lg bg-background px-4 py-3 font-bold text-foreground">Load next tray →</Link>
+    </div>
+  );
+}
+
+/* ---------------- STEP 2 · LOAD ---------------- */
+export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
+  const { status } = useSync();
+  const [edit, setEdit] = useState(false);
+  const [pending, setPending] = useState<{ from: number; to: number } | null>(null);
+  const tried = useRef(false);
+  const byComp = new Map(snap.items.map((i) => [i.compartment_no, i]));
+  const canLoad = !locked && ["empty", "loaded"].includes(snap.session.status);
+
+  const autoFill = async () => {
+    try {
+      const n = await rpc<number>("auto_load", { p_session: snap.session.id });
+      await refresh();
+      toast.success(n ? `${n} product${n > 1 ? "s" : ""} placed in the first free compartments` : "Nothing left to place");
+    } catch (e) { toast.error(errMsg(e)); }
+  };
+  useEffect(() => {
+    if (tried.current || !canLoad || status === "offline") return;
+    if (snap.items.length === 0 && (snap.tagsLeft ?? 0) > 0) { tried.current = true; void autoFill(); }
+  }, [snap.items.length, snap.tagsLeft]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tap = (n: number) => {
+    if (!canLoad) return;
+    const item = byComp.get(n);
+    if (item?.gross_weight != null) return toast.error("Already weighed — use Edit to move it");
+    void run("set_compartment", { p_session: snap.session.id, p_compartment: n, p_occupied: !item, p_item_id: item?.id ?? crypto.randomUUID() }, `Compartment ${n}`);
+  };
+  const doMove = () => {
+    if (!pending) return;
+    const it = byComp.get(pending.from);
+    if (it) void run("move_item", { p_item: it.id, p_to: pending.to }, `Move ${pending.from}→${pending.to}`, it.id);
+    setPending(null);
+  };
+  const target = pending ? byComp.get(pending.to) : null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="num rounded-lg bg-card px-3 py-2 text-lg font-bold">{snap.items.length} in this tray</span>
+        <div className="ml-auto flex gap-2">
+          {canLoad && <Button variant="outline" className="h-11" onClick={() => void autoFill()} disabled={status === "offline"}><Wand2 className="mr-1 h-4 w-4" />Auto-fill</Button>}
+          {!locked && <Button variant={edit ? "default" : "outline"} className="h-11" onClick={() => setEdit(!edit)}><Move className="mr-1 h-4 w-4" />{edit ? "Done editing" : "Edit"}</Button>}
+        </div>
+      </div>
+      <p className="rounded-lg bg-muted p-3 text-base font-semibold">
+        {edit ? "Drag a product to another compartment (or tap it, then tap the new spot)." : canLoad ? "Products are placed in order. Tap a compartment to add or remove a product." : "Loading is finished for this tray. Use Edit to move a product."}
+      </p>
+      <Grid snap={snap} stateOf={(n) => (byComp.has(n) ? "loaded" : "empty")} onTap={tap} editMode={edit} onMove={(from, to) => setPending({ from, to })} />
+      <Legend only={["empty", "loaded"]} />
+      <NextTrayBanner snap={snap} />
+      <Button className="h-16 w-full text-xl" disabled={!snap.items.length} onClick={() => go("weigh")}>Next: Weighing →</Button>
+
+      <AlertDialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move product?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Move the product from compartment <b>{pending && pad(pending.from)}</b> to <b>{pending && pad(pending.to)}</b>.
+              {target && <> The product in {pending && pad(pending.to)} will move to {pending && pad(pending.from)}.</>}
+              {" "}Make sure you move it in the real tray too.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-12">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="h-12" onClick={doMove}>Yes, move it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/* ---------------- STEP 3 · WEIGH ---------------- */
+export function WeighStep({ snap, run, locked, go }: StepProps) {
+  const items = sortedItems(snap);
+  const byComp = new Map(items.map((i) => [i.compartment_no, i]));
+  const firstOpen = items.find((i) => i.gross_weight == null)?.compartment_no ?? items[0]?.compartment_no ?? null;
+  const [sel, setSel] = useState<number | null>(firstOpen);
+  const started = useRef(false);
+  useEffect(() => {
+    if (!started.current && !locked && snap.session.station === "loading" && items.length) {
+      started.current = true; void run("start_weighing", { p_session: snap.session.id }, "Start weighing");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!snap.tagNumbers.length) return (
+    <div className="space-y-3 rounded-xl bg-warning p-6 text-center text-warning-foreground">
+      <p className="text-xl font-bold">Add the next tag numbers first.</p>
+      <Button className="h-14" onClick={() => go("tags")}>Go to Tag numbers</Button>
+    </div>
+  );
+  if (!items.length) return <Button className="h-14 w-full" onClick={() => go("load")}>Load the tray first</Button>;
+
+  const done = items.filter((i) => i.gross_weight != null).length;
+  const next = (after: number) => (items.find((i) => i.compartment_no > after && i.gross_weight == null) ?? items.find((i) => i.gross_weight == null))?.compartment_no ?? null;
+  const item = sel != null ? byComp.get(sel) : undefined;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_1fr]">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="num text-lg font-bold">Weighed {done} / {items.length}</span>
+          <span className="text-sm text-muted-foreground">Tap a compartment</span>
+        </div>
+        <Grid snap={snap} selected={sel} onTap={(n) => byComp.has(n) && setSel(n)}
+          stateOf={(n) => { const i = byComp.get(n); if (!i) return "empty"; if (i.hold_flag) return "hold"; return i.gross_weight != null ? "weighed" : "loaded"; }}
+          sub={(n) => { const i = byComp.get(n); return i?.net_weight != null ? Number(i.net_weight).toFixed(3) : null; }} />
+        <Legend only={["loaded", "weighed", "hold"]} />
+        {done === items.length && <Button className="h-16 w-full text-xl" onClick={() => go(snap.pool.length ? "match" : "huids")}>All weighed — Next: HUIDs →</Button>}
+      </div>
+      <div>
+        {item ? <WeightPanel key={item.id} item={item} snap={snap} locked={locked} run={run} onDone={() => setSel(next(item.compartment_no))} />
+          : <p className="rounded-lg border-2 border-dashed p-8 text-center text-muted-foreground">All products are weighed.</p>}
+      </div>
+    </div>
+  );
+}
+
+function WeightPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Snap; locked: boolean; run: Station["run"]; onDone: () => void }) {
+  const [gross, setGross] = useState(item.gross_weight != null ? Number(item.gross_weight).toFixed(3) : "");
+  const [less, setLess] = useState(Number(item.less_weight ?? 0).toFixed(3));
+  const [field, setField] = useState<"gross" | "less">("gross");
+  const [pcs, setPcs] = useState(item.pcs);
+  const [narr, setNarr] = useState(item.narration ?? "");
+  const [hold, setHold] = useState<HoldFlag | "">("");
+  const [holdNote, setHoldNote] = useState("");
+  const g = Number(gross || 0), l = Number(less || 0);
+  const net = +(g - l).toFixed(3);
+  const others = [...snap.sublotGross, ...snap.items.filter((i) => i.id !== item.id && i.gross_weight != null).map((i) => Number(i.gross_weight))];
+  const avg = others.length ? others.reduce((a, b) => a + b, 0) / others.length : 0;
+  const assigned = snap.itemHuids[item.id]?.length ?? 0;
+
+  const save = async () => {
+    if (!(g > 0)) return toast.error("Enter gross weight");
+    if (l < 0 || l > g) return toast.error("Less weight must be between 0 and gross");
+    if (pcs < assigned) return toast.error("This product already has more HUIDs than that. Remove them in the HUID step first.");
+    if (avg > 0 && (g > avg * 3 || g < avg / 3) && !confirm(`Gross ${g.toFixed(3)} g is far from the average ${avg.toFixed(3)} g. Save anyway?`)) return;
+    await run("save_weight", { p_item: item.id, p_gross: g, p_less: l, p_pcs: pcs, p_narration: narr }, `Weight ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
+    toast.success(`${snap.tray.tray_code}-${pad(item.compartment_no)} saved`);
+    onDone();
+  };
+  const wField = (k: "gross" | "less", label: string, v: string) => (
+    <button type="button" onClick={() => setField(k)} className={cn("flex-1 rounded-lg border-4 p-2 text-left", field === k ? "border-ring bg-accent/30" : "border-border bg-card")}>
+      <div className="text-xs font-bold uppercase text-muted-foreground">{label}</div>
+      <div className="num text-3xl font-bold">{v || "0.000"}</div>
+    </button>
+  );
+  return (
+    <div className="space-y-3 rounded-xl border-2 bg-card p-3">
+      <div className="flex items-center justify-between">
+        <span className="num text-3xl font-extrabold">{snap.tray.tray_code}-{pad(item.compartment_no)}</span>
+        {item.hold_flag && <span className="rounded bg-destructive px-2 py-1 text-sm font-bold text-destructive-foreground">HOLD: {HOLD_LABEL[item.hold_flag]}</span>}
+      </div>
+      <div className="flex gap-2">
+        {wField("gross", "Gross g", gross)}
+        {wField("less", "Less g", less)}
+        <div className="flex-1 rounded-lg bg-muted p-2"><div className="text-xs font-bold uppercase text-muted-foreground">Net g</div><div className="num text-3xl font-bold">{fmt3(net)}</div></div>
+      </div>
+      {!locked && <Keypad value={field === "gross" ? gross : less} onChange={field === "gross" ? setGross : setLess} />}
+      <div className="flex items-center gap-2">
+        <span className="font-bold">Pcs</span>
+        {[1, 2].map((p) => (
+          <button key={p} type="button" onClick={() => setPcs(p)} className={cn("num h-12 w-16 rounded-lg border-2 text-xl font-bold", pcs === p ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>{p}</button>
+        ))}
+        <Input className="h-12 flex-1" placeholder="Narration (optional)" value={narr} onChange={(e) => setNarr(e.target.value)} />
+      </div>
+      {!locked && (
+        <>
+          <Button className="h-16 w-full text-xl font-bold" onClick={() => void save()}>Save & next</Button>
+          <details className="rounded-lg border p-2">
+            <summary className="cursor-pointer font-semibold">Flag a problem (hold)</summary>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <select className="h-12 rounded-md border bg-background px-2" value={hold} onChange={(e) => setHold(e.target.value as HoldFlag)}>
+                <option value="">Reason…</option>
+                {(Object.keys(HOLD_LABEL) as HoldFlag[]).map((k) => <option key={k} value={k}>{HOLD_LABEL[k]}</option>)}
+              </select>
+              <Input className="h-12" placeholder="Note" value={holdNote} onChange={(e) => setHoldNote(e.target.value)} />
+              <Button variant="destructive" className="h-12" disabled={!hold} onClick={() => { void run("set_hold", { p_item: item.id, p_flag: hold, p_note: holdNote }, `Hold ${item.compartment_no}`, item.id); toast.success("Hold flagged"); }}>Flag</Button>
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- STEP 5 · MATCH HUIDs ---------------- */
+export function MatchStep({ snap, run, locked, go }: StepProps) {
+  const items = sortedItems(snap);
+  const byComp = new Map(items.map((i) => [i.compartment_no, i]));
+  const [sel, setSel] = useState<number | null>(items.find((i) => !huidsDone(snap, i))?.compartment_no ?? items[0]?.compartment_no ?? null);
+  const left = snap.pool.filter((p) => !p.assigned_item_id).length;
+
+  if (!snap.pool.length) return (
+    <div className="space-y-3 rounded-xl bg-warning p-6 text-center text-warning-foreground">
+      <p className="text-xl font-bold">Add the HUID list first.</p>
+      <Button className="h-14" onClick={() => go("huids")}>Go to HUID list</Button>
+    </div>
+  );
+  const done = items.filter((i) => huidsDone(snap, i)).length;
+  const next = (after: number) => (items.find((i) => i.compartment_no > after && !huidsDone(snap, i)) ?? items.find((i) => !huidsDone(snap, i)))?.compartment_no ?? null;
+  const item = sel != null ? byComp.get(sel) : undefined;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_1fr]">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="num text-lg font-bold">Matched {done} / {items.length}</span>
+          <span className="num rounded bg-sidebar-primary px-2 py-1 text-sm font-bold text-sidebar-primary-foreground">HUIDs left: {left}</span>
+        </div>
+        <Grid snap={snap} selected={sel} onTap={(n) => byComp.has(n) && setSel(n)}
+          stateOf={(n) => { const i = byComp.get(n); if (!i) return "empty"; if (i.hold_flag) return "hold"; return huidsDone(snap, i) ? "huid" : i.gross_weight != null ? "weighed" : "loaded"; }}
+          sub={(n) => { const i = byComp.get(n); return i ? (snap.itemHuids[i.id]?.join(" ") ?? (i.net_weight != null ? Number(i.net_weight).toFixed(3) : null)) : null; }} />
+        <Legend only={["loaded", "weighed", "huid", "hold"]} />
+        {done === items.length && <Button className="h-16 w-full text-xl" onClick={() => go("finish")}>All matched — Next: Finish →</Button>}
+      </div>
+      <div>
+        {item ? <MatchPanel key={item.id + (snap.itemHuids[item.id]?.join() ?? "")} item={item} snap={snap} locked={locked} run={run} onDone={() => setSel(next(item.compartment_no))} />
+          : <p className="rounded-lg border-2 border-dashed p-8 text-center text-muted-foreground">Every product has its HUIDs.</p>}
+      </div>
+    </div>
+  );
+}
+
+function MatchPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Snap; locked: boolean; run: Station["run"]; onDone: () => void }) {
+  const { status } = useSync();
+  const current = snap.itemHuids[item.id] ?? [];
+  const [picked, setPicked] = useState<string[]>([]);
+  const [q, setQ] = useState("");
+  const [manual, setManual] = useState("");
+  const net = item.net_weight != null ? Number(item.net_weight) : 0;
+  const free = useMemo(() => snap.pool.filter((p) => !p.assigned_item_id), [snap.pool]);
+  const suggestions = useMemo(() => (net > 0 && current.length === 0 ? suggestHuids(free, net, item.pcs) : []), [free, net, item.pcs, current.length]);
+  const list = useMemo(() => {
+    const f = free.filter((p) => !picked.includes(p.huid) && (!q || p.huid.includes(q.toUpperCase())));
+    if (net > 0 && item.pcs === 1) f.sort((a, b) => Math.abs(Number(a.piece_weight ?? 1e9) - net) - Math.abs(Number(b.piece_weight ?? 1e9) - net));
+    return f;
+  }, [free, picked, q, net, item.pcs]);
+
+  const commit = async (h: string[]) => {
+    await run("assign_item_huids", { p_item: item.id, p_huids: h }, `HUID ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
+    toast.success(`${snap.tray.tray_code}-${pad(item.compartment_no)} → ${h.join(", ")}`);
+    onDone();
+  };
+  const pick = (h: string) => {
+    if (locked) return;
+    const nextP = [...picked, h];
+    if (nextP.length >= item.pcs) void commit(nextP.slice(0, item.pcs)); else setPicked(nextP);
+  };
+  const addManual = async () => {
+    const h = normHuid(manual);
+    if (!validHuid(h)) return toast.error("HUID must be 6 letters/digits");
+    if (picked.includes(h)) return toast.error("Same HUID twice on one tag");
+    const local = snap.pool.find((p) => p.huid === h);
+    if (local?.assigned_item_id) return toast.error("Already used on another product");
+    if (!local && status !== "offline") {
+      const { data } = await db.rpc("check_huids", { p_huids: [h] });
+      if (data?.length) return toast.error(`${h} already exists (lot ${data[0].lot_no})`);
+    }
+    if (hasConfusable(h)) toast.warning("Check 0/O, 1/I, 5/S, 8/B, 2/Z");
+    setManual(""); pick(h);
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border-2 bg-card p-3">
+      <div className="flex flex-wrap items-baseline gap-3">
+        <span className="num text-3xl font-extrabold">{snap.tray.tray_code}-{pad(item.compartment_no)}</span>
+        <span className="num text-lg">{item.net_weight != null ? `${fmt3(item.net_weight)} g net` : "not weighed yet"} · {item.pcs} pc{item.pcs > 1 ? "s" : ""}</span>
+      </div>
+
+      {current.length > 0 ? (
+        <div className="space-y-2 rounded-lg bg-success p-3 text-success-foreground">
+          <div className="flex items-center gap-2 text-lg font-bold"><CheckCircle2 className="h-6 w-6" /> {current.join(" + ")}</div>
+          {!locked && <div className="flex gap-2">
+            <Button variant="secondary" className="h-12 flex-1" onClick={() => void run("unassign_item_huids", { p_item: item.id }, `Unassign ${item.compartment_no}`, item.id)}>Change HUIDs</Button>
+            <Button variant="secondary" className="h-12 flex-1" onClick={onDone}>Next →</Button>
+          </div>}
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-2">
+            {Array.from({ length: item.pcs }, (_, i) => (
+              <button key={i} type="button" onClick={() => setPicked(picked.filter((_, j) => j !== i))}
+                className={cn("num h-14 flex-1 rounded-lg border-2 text-xl font-bold", picked[i] ? "border-primary bg-primary text-primary-foreground" : "border-dashed bg-background text-muted-foreground")}>
+                {picked[i] ? `${picked[i]} ✕` : `HUID ${i + 1}`}
+              </button>
+            ))}
+          </div>
+          {suggestions.length > 0 && picked.length === 0 && (
+            <div>
+              <div className="mb-1 text-sm font-bold uppercase text-muted-foreground">Best weight match</div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {suggestions.map((s) => (
+                  <button key={s.rows.map((r) => r.id).join()} type="button" disabled={locked} onClick={() => void commit(s.rows.map((r) => r.huid))}
+                    className="rounded-lg border-2 border-primary bg-background p-2 text-left active:bg-accent">
+                    {s.rows.map((r) => <div key={r.id} className="num flex justify-between text-lg font-bold"><span>{r.huid}</span><span>{fmt3(r.piece_weight)}</span></div>)}
+                    <div className="num text-xs text-muted-foreground">Σ {fmt3(s.sum)} · off by {fmt3(s.diff)}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <Input className="num h-12 text-lg uppercase" placeholder="Search HUID (type any part)" value={q} onChange={(e) => setQ(e.target.value.toUpperCase())} />
+          <div className="grid max-h-[22rem] grid-cols-2 gap-2 overflow-auto sm:grid-cols-3">
+            {list.map((p) => (
+              <button key={p.id} type="button" disabled={locked} onClick={() => pick(p.huid)}
+                className="num flex flex-col items-start rounded-lg border-2 bg-background p-2 text-left active:bg-accent">
+                <span className="text-xl font-bold tracking-wider">{p.huid}</span>
+                {p.piece_weight != null && <span className="text-xs text-muted-foreground">{fmt3(p.piece_weight)} g</span>}
+              </button>
+            ))}
+            {list.length === 0 && <p className="col-span-full p-3 text-center text-muted-foreground">No free HUIDs{q ? " match" : " left"}.</p>}
+          </div>
+          <details className="rounded-lg border p-2">
+            <summary className="cursor-pointer text-sm font-semibold">HUID not in the list? Type it</summary>
+            <div className="mt-2 flex gap-2">
+              <Input className="num h-12 uppercase" maxLength={6} placeholder="ABC123" value={manual} onChange={(e) => setManual(e.target.value.toUpperCase())} />
+              <Button className="h-12" variant="outline" onClick={() => void addManual()}>Add</Button>
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- STEP 6 · FINISH ---------------- */
+export function FinishStep({ snap, run, locked, go }: StepProps) {
+  const nav = useNavigate();
+  const items = snap.items;
+  const weighed = items.filter((i) => i.gross_weight != null).length;
+  const matched = items.filter((i) => huidsDone(snap, i)).length;
+  const holds = items.filter((i) => i.hold_flag).length;
+  const ready = items.length > 0 && weighed === items.length && matched === items.length;
+  const closed = snap.session.status !== "empty" && snap.session.status !== "loaded";
+
+  const Row = ({ label, v, ok, to }: { label: string; v: string; ok: boolean; to: StepKey }) => (
+    <button type="button" onClick={() => go(to)} className={cn("flex w-full items-center justify-between rounded-lg border-2 p-4 text-left text-lg", ok ? "border-success" : "border-warning")}>
+      <span className="font-semibold">{label}</span><span className="num font-bold">{v} {ok ? "✓" : "→"}</span>
+    </button>
+  );
+  const closeSublot = async () => {
+    if (!confirm(`Close sublot ${snap.sublot.lot_no} #${snap.sublot.sublot_no}? All trays must be finished.`)) return;
+    try {
+      const pass = await rpc<boolean>("close_sublot", { p_sublot: snap.sublot.id });
+      if (pass) toast.success("Check passed — sent to photography"); else toast.error("Check failed — call manager.", { duration: 20000 });
+      void nav({ to: "/station" });
+    } catch (e) { toast.error(errMsg(e)); }
+  };
+
+  return (
+    <div className="mx-auto max-w-xl space-y-3">
+      <Row label="Tag numbers" v={`${snap.tagNumbers.length}`} ok={snap.tagNumbers.length > 0} to="tags" />
+      <Row label="Weighed" v={`${weighed} / ${items.length}`} ok={items.length > 0 && weighed === items.length} to="weigh" />
+      <Row label="HUIDs matched" v={`${matched} / ${items.length}`} ok={items.length > 0 && matched === items.length} to="match" />
+      {holds > 0 && <p className="rounded-lg bg-destructive p-3 font-bold text-destructive-foreground">{holds} product(s) on hold — manager will review.</p>}
+      {!locked && !closed && (
+        <Button className="h-16 w-full text-xl" disabled={!ready} onClick={async () => { await run("close_tray_session", { p_session: snap.session.id }, `Close tray ${snap.tray.tray_code}`); toast.success(`Tray ${snap.tray.tray_code} complete`); }}>
+          {ready ? `Finish tray ${snap.tray.tray_code}` : "Finish tray (complete the steps above)"}
+        </Button>
+      )}
+      {closed && <p className="rounded-lg bg-success p-4 text-center text-lg font-bold text-success-foreground">Tray {snap.tray.tray_code} is finished.</p>}
+      <NextTrayBanner snap={snap} />
+      {closed && !snap.tagsLeft && !locked && <Button variant="secondary" className="h-16 w-full text-xl" onClick={() => void closeSublot()}>All trays done — Close sublot</Button>}
+      <Button variant="outline" className="h-14 w-full" onClick={() => nav({ to: "/station" })}>Back to station</Button>
+    </div>
+  );
+}
