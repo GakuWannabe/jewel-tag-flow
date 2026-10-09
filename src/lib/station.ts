@@ -127,7 +127,7 @@ export function useStation(sessionId: string) {
   }, [sessionId]);
 
   useEffect(() => {
-    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? { tagNumbers: [], tagsLeft: null, ...c }); });
+    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? { ...c, tagNumbers: c.tagNumbers ?? [], tagsLeft: c.tagsLeft ?? null }); });
     void refresh();
     return onFlushed(() => void refresh());
   }, [sessionId, refresh]);
