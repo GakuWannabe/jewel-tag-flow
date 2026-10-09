@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791580074612,
+      "tag": "0000_station_steps_realtime_delete",
+      "breakpoints": true
+    }
+  ]
+}
