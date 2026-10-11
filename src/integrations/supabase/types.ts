@@ -22,6 +22,7 @@ export type Database = {
           id: string
           key_hash: string
           key_hint: string | null
+          kind: string
           name: string
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           id?: string
           key_hash: string
           key_hint?: string | null
+          kind?: string
           name: string
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           id?: string
           key_hash?: string
           key_hint?: string | null
+          kind?: string
           name?: string
         }
         Relationships: []
@@ -362,8 +365,11 @@ export type Database = {
           narration: string | null
           net_weight: number | null
           pcs: number
+          photo_delivered_at: string | null
           photo_filename: string | null
           photo_matched_at: string | null
+          photo_skip_reason: string | null
+          photo_skipped_at: string | null
           photo_url: string | null
           scale_serial: string | null
           sequence: number | null
@@ -401,8 +407,11 @@ export type Database = {
           narration?: string | null
           net_weight?: number | null
           pcs?: number
+          photo_delivered_at?: string | null
           photo_filename?: string | null
           photo_matched_at?: string | null
+          photo_skip_reason?: string | null
+          photo_skipped_at?: string | null
           photo_url?: string | null
           scale_serial?: string | null
           sequence?: number | null
@@ -440,8 +449,11 @@ export type Database = {
           narration?: string | null
           net_weight?: number | null
           pcs?: number
+          photo_delivered_at?: string | null
           photo_filename?: string | null
           photo_matched_at?: string | null
+          photo_skip_reason?: string | null
+          photo_skipped_at?: string | null
           photo_url?: string | null
           scale_serial?: string | null
           sequence?: number | null
@@ -585,6 +597,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      photo_skips: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          id: string
+          item_id: string
+          reason: string
+          sequence: number | null
+          sublot_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          item_id: string
+          reason: string
+          sequence?: number | null
+          sublot_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          item_id?: string
+          reason?: string
+          sequence?: number | null
+          sublot_id?: string
+        }
+        Relationships: []
       }
       product_types: {
         Row: {
@@ -856,6 +898,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sublot_unseals: {
+        Row: {
+          from_status: string | null
+          id: string
+          items: number | null
+          reason: string
+          sublot_id: string
+          unsealed_at: string
+          unsealed_by: string | null
+        }
+        Insert: {
+          from_status?: string | null
+          id?: string
+          items?: number | null
+          reason: string
+          sublot_id: string
+          unsealed_at?: string
+          unsealed_by?: string | null
+        }
+        Update: {
+          from_status?: string | null
+          id?: string
+          items?: number | null
+          reason?: string
+          sublot_id?: string
+          unsealed_at?: string
+          unsealed_by?: string | null
+        }
+        Relationships: []
       }
       sublots: {
         Row: {
@@ -1199,6 +1271,10 @@ export type Database = {
         Args: { p_huids: string[]; p_item: string }
         Returns: undefined
       }
+      assign_photographer: {
+        Args: { p_sublot: string; p_user: string }
+        Returns: undefined
+      }
       auto_load: { Args: { p_session: string }; Returns: number }
       check_huids: {
         Args: { p_huids: string[] }
@@ -1298,6 +1374,10 @@ export type Database = {
       start_weighing: { Args: { p_session: string }; Returns: undefined }
       tags_left_to_load: { Args: { p_sublot: string }; Returns: number }
       unassign_item_huids: { Args: { p_item: string }; Returns: undefined }
+      unseal_sublot: {
+        Args: { p_reason: string; p_sublot: string }
+        Returns: string[]
+      }
     }
     Enums: {
       app_role: "manager" | "staff" | "photo" | "auditor"

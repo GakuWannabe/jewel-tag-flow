@@ -15,6 +15,13 @@
       "when": 1791748222586,
       "tag": "0001_add_ready_to_export_status",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791748276580,
+      "tag": "0002_photos_after_seal",
+      "breakpoints": true
     }
   ]
 }
