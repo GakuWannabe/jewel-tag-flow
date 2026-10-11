@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
-import { Scale, Camera, Package, Database, Users, Settings, Activity, BarChart3, History } from "lucide-react";
+import { Scale, Package, Database, Users, Settings, Activity, BarChart3, History } from "lucide-react";
 import type { Role } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/app")({
