@@ -6,7 +6,7 @@ export const Route = createFileRoute("/api/public/batches/$sublotId/items")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const g = await botGuard(request, params.sublotId);
+        const g = await botGuard(request, "bot", params.sublotId);
         if (g instanceof Response) return g;
         try {
           const b = await loadBatch(g.admin, params.sublotId);

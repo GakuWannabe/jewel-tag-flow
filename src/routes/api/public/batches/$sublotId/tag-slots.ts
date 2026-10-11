@@ -9,7 +9,7 @@ export const Route = createFileRoute("/api/public/batches/$sublotId/tag-slots")(
   server: {
     handlers: {
       POST: async ({ request, params }) => {
-        const g = await botGuard(request, params.sublotId);
+        const g = await botGuard(request, "bot", params.sublotId);
         if (g instanceof Response) return g;
         const parsed = Body.safeParse(await request.json().catch(() => null));
         if (!parsed.success) return json({ error: "Invalid body", details: parsed.error.flatten() }, 400);
