@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { db, rpc, errMsg } from "@/lib/db";
+import { db, errMsg } from "@/lib/db";
+import { useServerFn } from "@tanstack/react-start";
+import { deleteLot } from "@/lib/photos.functions";
 import { useAuth } from "@/lib/auth";
 import { Trash2 } from "lucide-react";
 import {
@@ -48,6 +50,7 @@ function Lots() {
   const [del, setDel] = useState<any>(null);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
+  const removeLot = useServerFn(deleteLot);
   const [f, setF] = useState<any>({ making_type: "per_gram", received_date: new Date().toISOString().slice(0, 10), wastage_pct: "0", making_value: "0" });
 
   const submit = async (e: React.FormEvent) => {
@@ -112,8 +115,7 @@ function Lots() {
             <Button variant="destructive" className="h-12" disabled={typed !== "DELETE" || busy} onClick={async () => {
               setBusy(true);
               try {
-                const photos = await rpc<string[]>("delete_lot", { p_lot: del.id, p_confirm: typed });
-                if (photos?.length) await db.storage.from("photos").remove(photos).catch(() => null);
+                await removeLot({ data: { lotId: del.id, confirm: typed } });
                 toast.success(`Lot ${del.lot_no} deleted`); setDel(null); refetch();
               } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
             }}>Delete forever</Button>

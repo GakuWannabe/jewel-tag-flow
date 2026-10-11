@@ -22,3 +22,5 @@
 - Login is username + PIN mapped to `username@staff.taggingline.app`; users are created only by managers via admin server functions; public signup is disabled.
 - tsconfig relaxes noUncheckedIndexedAccess / noPropertyAccessFromIndexSignature / exactOptionalPropertyTypes / noImplicitReturns. Why: loosely-typed DB rows (`db` handle) across a large schema.
 - Mode 1 export falls back to `src/lib/erp-template.ts` (exact 131-column ERP order) when a sublot has no stored headers. Why: sheet must match the ERP import format.
+- Photography runs AFTER seal: close_sublot → ready_to_seal → seal (assigns tags + photo_filename) → assign_photographer → photography → device /complete → ready_to_export. Unseal (manager, logged in `sublot_unseals`) reverts to ready_to_seal. Why: photo names need tag numbers.
+- Photos live in private bucket `item-photos/{sublot_id}/{filename}`, written only by server routes (`/api/public/photo/*`, x-api-key kind='photo'); bot routes require kind='bot'. Photo device responses never include weights or declared totals. Stored copies are purged once the bot confirms ERP delivery.
