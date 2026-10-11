@@ -1,7 +1,7 @@
 export type Role = "manager" | "staff" | "photo" | "auditor";
 export type SublotStatus =
   | "draft" | "issued" | "loading" | "weighing" | "photography" | "ready_to_seal"
-  | "sealed" | "exported" | "closed" | "halted";
+  | "sealed" | "ready_to_export" | "exported" | "closed" | "halted";
 export type HoldFlag = "damaged" | "wrong_item" | "re_photo" | "weight_disputed";
 
 export interface Tray {

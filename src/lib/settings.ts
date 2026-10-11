@@ -8,7 +8,7 @@ export interface Settings {
   photo_name_template: string;
   export_mapping: MapRow[];
 }
-export const DEFAULT_TEMPLATE = "{COMPCODE}{IC}{ser_no}.JPEG";
+export const DEFAULT_TEMPLATE = "{COMPCODE}{IC}{ser_no}.jpg";
 
 export function useSettings() {
   return useQuery({

@@ -37,6 +37,7 @@ export function StatusBadge({ status }: { status: string }) {
     photography: "bg-st-photo text-destructive-foreground",
     ready_to_seal: "bg-success text-success-foreground",
     sealed: "bg-primary text-primary-foreground",
+    ready_to_export: "bg-success text-success-foreground",
     exported: "bg-primary text-primary-foreground",
     closed: "bg-muted text-muted-foreground",
     halted: "bg-destructive text-destructive-foreground",

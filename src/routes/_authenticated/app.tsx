@@ -11,7 +11,6 @@ export const Route = createFileRoute("/_authenticated/app")({
 
 const TILES: { to: string; label: string; sub: string; icon: typeof Scale; roles: Role[] }[] = [
   { to: "/station", label: "Tray station", sub: "Load · weigh · HUID", icon: Scale, roles: ["staff", "manager"] },
-  { to: "/photo", label: "Photography", sub: "Shot lists · ZIP upload", icon: Camera, roles: ["photo", "manager"] },
   { to: "/manager/lots", label: "Lots & sublots", sub: "Create · import · seal · export", icon: Package, roles: ["manager", "auditor"] },
   { to: "/wip", label: "WIP dashboard", sub: "Live tray status", icon: Activity, roles: ["manager", "auditor"] },
   { to: "/reports", label: "Throughput", sub: "Items per hour", icon: BarChart3, roles: ["manager", "auditor"] },
