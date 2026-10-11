@@ -13,7 +13,7 @@ export interface BotRow {
 export async function loadBatch(client: any, sublotId: string) {
   const { data: sublot, error } = await client
     .from("sublots")
-    .select("*, product_types(*), lots(*, branches(*), vendors(*), purities(*))")
+    .select("*, product_types(*), vendors(*), purities(*), lots(*, branches(*), vendors(*), purities(*))")
     .eq("id", sublotId)
     .single();
   if (error || !sublot) throw new Error("Sublot not found");
@@ -25,19 +25,23 @@ export async function loadBatch(client: any, sublotId: string) {
     .order("sequence", { ascending: true });
   const { data: slots } = await client.from("tag_slots").select("*").eq("sublot_id", sublotId).not("assigned_item_id", "is", null);
   const lot = sublot.lots;
+  // pricing lives on the sublot; older sublots fall back to the lot
+  const pick = (k: string) => sublot[k] ?? lot[k];
+  const purity = sublot.purities ?? lot.purities;
+  const vendor = sublot.vendors ?? lot.vendors;
   const rows: BotRow[] = (items ?? [])
     .filter((i: any) => i.sequence != null)
     .map((i: any) => ({
       gross_weight: Number(i.gross_weight),
       less_weight: Number(i.less_weight),
-      melting: Number(lot.melting),
-      wastage_pct: Number(lot.wastage_pct),
+      melting: Number(pick("melting")),
+      wastage_pct: Number(pick("wastage_pct")),
       narration: i.narration ?? "",
       pcs: i.pcs,
-      making_value: Number(lot.making_value),
-      making_type: lot.making_type,
-      purity_label: lot.purities.purity_label,
-      vendor_code: lot.vendors.code,
+      making_value: Number(pick("making_value")),
+      making_type: pick("making_type"),
+      purity_label: purity?.purity_label ?? "",
+      vendor_code: vendor?.code ?? "",
       huids: (i.item_huids ?? [])
         .filter((h: any) => !h.removed_at)
         .sort((a: any, b: any) => a.position - b.position)

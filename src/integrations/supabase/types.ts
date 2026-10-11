@@ -510,6 +510,47 @@ export type Database = {
         }
         Relationships: []
       }
+      lot_targets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          lot_id: string
+          total_gross_weight: number
+          total_net_weight: number
+          total_pcs: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          lot_id: string
+          total_gross_weight: number
+          total_net_weight: number
+          total_pcs: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          lot_id?: string
+          total_gross_weight?: number
+          total_net_weight?: number
+          total_pcs?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lot_targets_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: true
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lots: {
         Row: {
           branch_id: string
@@ -520,17 +561,17 @@ export type Database = {
           deleted_by: string | null
           id: string
           lot_no: string
-          making_type: Database["public"]["Enums"]["making_type"]
-          making_value: number
-          melting: number
+          making_type: Database["public"]["Enums"]["making_type"] | null
+          making_value: number | null
+          melting: number | null
           notes: string | null
-          purity_id: string
+          purity_id: string | null
           received_date: string
           status: string
           updated_at: string | null
           updated_by: string | null
-          vendor_id: string
-          wastage_pct: number
+          vendor_id: string | null
+          wastage_pct: number | null
         }
         Insert: {
           branch_id: string
@@ -541,17 +582,17 @@ export type Database = {
           deleted_by?: string | null
           id?: string
           lot_no: string
-          making_type?: Database["public"]["Enums"]["making_type"]
-          making_value?: number
-          melting: number
+          making_type?: Database["public"]["Enums"]["making_type"] | null
+          making_value?: number | null
+          melting?: number | null
           notes?: string | null
-          purity_id: string
+          purity_id?: string | null
           received_date?: string
           status?: string
           updated_at?: string | null
           updated_by?: string | null
-          vendor_id: string
-          wastage_pct?: number
+          vendor_id?: string | null
+          wastage_pct?: number | null
         }
         Update: {
           branch_id?: string
@@ -562,17 +603,17 @@ export type Database = {
           deleted_by?: string | null
           id?: string
           lot_no?: string
-          making_type?: Database["public"]["Enums"]["making_type"]
-          making_value?: number
-          melting?: number
+          making_type?: Database["public"]["Enums"]["making_type"] | null
+          making_value?: number | null
+          melting?: number | null
           notes?: string | null
-          purity_id?: string
+          purity_id?: string | null
           received_date?: string
           status?: string
           updated_at?: string | null
           updated_by?: string | null
-          vendor_id?: string
-          wastage_pct?: number
+          vendor_id?: string | null
+          wastage_pct?: number | null
         }
         Relationships: [
           {
@@ -939,8 +980,12 @@ export type Database = {
           halt_reason: string | null
           id: string
           lot_id: string
+          making_type: Database["public"]["Enums"]["making_type"] | null
+          making_value: number | null
+          melting: number | null
           photographer_id: string | null
           product_type_id: string
+          purity_id: string | null
           sealed_at: string | null
           sealed_by: string | null
           slot_headers: Json | null
@@ -949,6 +994,8 @@ export type Database = {
           sublot_no: number
           updated_at: string | null
           updated_by: string | null
+          vendor_id: string | null
+          wastage_pct: number | null
         }
         Insert: {
           created_at?: string
@@ -959,8 +1006,12 @@ export type Database = {
           halt_reason?: string | null
           id?: string
           lot_id: string
+          making_type?: Database["public"]["Enums"]["making_type"] | null
+          making_value?: number | null
+          melting?: number | null
           photographer_id?: string | null
           product_type_id: string
+          purity_id?: string | null
           sealed_at?: string | null
           sealed_by?: string | null
           slot_headers?: Json | null
@@ -969,6 +1020,8 @@ export type Database = {
           sublot_no: number
           updated_at?: string | null
           updated_by?: string | null
+          vendor_id?: string | null
+          wastage_pct?: number | null
         }
         Update: {
           created_at?: string
@@ -979,8 +1032,12 @@ export type Database = {
           halt_reason?: string | null
           id?: string
           lot_id?: string
+          making_type?: Database["public"]["Enums"]["making_type"] | null
+          making_value?: number | null
+          melting?: number | null
           photographer_id?: string | null
           product_type_id?: string
+          purity_id?: string | null
           sealed_at?: string | null
           sealed_by?: string | null
           slot_headers?: Json | null
@@ -989,6 +1046,8 @@ export type Database = {
           sublot_no?: number
           updated_at?: string | null
           updated_by?: string | null
+          vendor_id?: string | null
+          wastage_pct?: number | null
         }
         Relationships: [
           {
@@ -1003,6 +1062,20 @@ export type Database = {
             columns: ["product_type_id"]
             isOneToOne: false
             referencedRelation: "product_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublots_purity_id_fkey"
+            columns: ["purity_id"]
+            isOneToOne: false
+            referencedRelation: "purities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublots_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]
