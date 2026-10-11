@@ -32,6 +32,7 @@ function SettingsPage() {
 
   const { data: bots = [], refetch } = useQuery({ queryKey: ["bots"], queryFn: async () => (await db.from("bot_clients").select("*").order("created_at")).data ?? [] });
   const [botName, setBotName] = useState("");
+  const [kind, setKind] = useState<"bot" | "photo">("photo");
 
   return (
     <AppShell title="Settings" back="/app">
@@ -70,13 +71,14 @@ function SettingsPage() {
         </div>
       </Card>
 
-      <Card title="ERP keystroke bot clients" className="mt-4">
-        <p className="text-sm text-muted-foreground">The bot sends its key in the <code>x-api-key</code> header. Keys are shown once.</p>
+      <Card title="Device keys — photo app & ERP bot" className="mt-4">
+        <p className="text-sm text-muted-foreground">Each device sends its key in the <code>x-api-key</code> header. A photo key only works on the photo app endpoints, a bot key only on the ERP bot endpoints. Keys are shown once.</p>
         <div className="flex gap-2">
-          <Input className="h-12" placeholder="Bot name (e.g. Terminal 3)" value={botName} onChange={(e) => setBotName(e.target.value)} />
+          <select className="h-12 rounded-md border bg-background px-2" value={kind} onChange={(e) => setKind(e.target.value as "bot" | "photo")}><option value="photo">Photo app</option><option value="bot">ERP bot</option></select>
+          <Input className="h-12" placeholder="Device name (e.g. Photo phone 1)" value={botName} onChange={(e) => setBotName(e.target.value)} />
           <Button className="h-12" disabled={!botName.trim()} onClick={async () => {
             const key = "tlk_" + [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, "0")).join("");
-            const { error } = await db.from("bot_clients").insert({ name: botName.trim(), key_hash: await sha256Hex(key), key_hint: key.slice(-4) });
+            const { error } = await db.from("bot_clients").insert({ name: botName.trim(), kind, key_hash: await sha256Hex(key), key_hint: key.slice(-4) });
             if (error) return toast.error(error.message);
             setBotName(""); refetch();
             prompt("Copy this API key now — it will not be shown again:", key);
@@ -84,7 +86,7 @@ function SettingsPage() {
         </div>
         {bots.map((b: any) => (
           <div key={b.id} className="flex items-center justify-between rounded border p-2">
-            <span><b>{b.name}</b> <span className="num text-muted-foreground">…{b.key_hint}</span></span>
+            <span><span className="mr-2 rounded bg-muted px-2 py-0.5 text-xs font-bold uppercase">{b.kind === "photo" ? "Photo app" : "ERP bot"}</span><b>{b.name}</b> <span className="num text-muted-foreground">…{b.key_hint}</span></span>
             <Button size="sm" variant={b.active ? "destructive" : "default"} onClick={async () => { await db.from("bot_clients").update({ active: !b.active }).eq("id", b.id); refetch(); }}>{b.active ? "Revoke" : "Re-enable"}</Button>
           </div>
         ))}

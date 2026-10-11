@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/public/batches/$sublotId/items/$seque
   server: {
     handlers: {
       POST: async ({ request, params }) => {
-        const g = await botGuard(request, params.sublotId);
+        const g = await botGuard(request, "bot", params.sublotId);
         if (g instanceof Response) return g;
         const seq = Number(params.sequence);
         if (!Number.isInteger(seq) || seq < 1) return json({ error: "Bad sequence" }, 400);

@@ -7,7 +7,7 @@ export interface BotRow {
   pcs: number; making_value: number; making_type: string; purity_label: string; vendor_code: string; huids: string[];
   // verification only
   sequence: number; compcode: string; type: string; ic: string; expected_ser_no: number;
-  tray_code: string; compartment_no: number; photo_filename: string | null;
+  tray_code: string; compartment_no: number; photo_filename: string | null; has_photo: boolean;
 }
 
 export async function loadBatch(client: any, sublotId: string) {
@@ -49,7 +49,8 @@ export async function loadBatch(client: any, sublotId: string) {
       expected_ser_no: i.ser_no,
       tray_code: i.tray_sessions?.trays?.tray_code,
       compartment_no: i.compartment_no,
-      photo_filename: i.photo_url ? i.photo_filename : null,
+      photo_filename: i.photo_filename ?? null,
+      has_photo: !!i.photo_url,
     }));
   return { sublot, lot, items: items ?? [], slots: slots ?? [], rows };
 }
@@ -75,7 +76,7 @@ export function fieldValue(field: string, row: BotRow, item: any): string | numb
     case "stone_pcs": return item.stone_pcs ?? "";
     case "size": return item.size ?? "";
     case "photo_filename": return row.photo_filename ?? "";
-    case "imgyesno": return row.photo_filename ? "TRUE" : "FALSE";
+    case "imgyesno": return row.has_photo ? "TRUE" : "FALSE";
     default: return null;
   }
 }

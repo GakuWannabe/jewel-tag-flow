@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -8,7 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db, rpc, errMsg, fmt3 } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
-import { buildManualZip, buildRenamedPhotoZip, buildSheet, downloadBlob } from "@/lib/export";
+import { buildManualZip, buildSheet, downloadBlob } from "@/lib/export";
+import { useServerFn } from "@tanstack/react-start";
+import { unsealSublot, photoLinks } from "@/lib/photos.functions";
+import { PhotoPanel } from "@/components/sublot/PhotoPanel";
 import { TagSlotPanel } from "@/components/sublot/TagSlotPanel";
 import { HuidPanel } from "@/components/sublot/HuidPanel";
 import { ItemsPanel } from "@/components/sublot/ItemsPanel";
@@ -24,6 +27,8 @@ function SublotPage() {
   const isMgr = has("manager");
   const { data: settings } = useSettings();
   const [busy, setBusy] = useState("");
+  const unseal = useServerFn(unsealSublot);
+  const links = useServerFn(photoLinks);
   const { data, refetch } = useQuery({
     queryKey: ["sublot-admin", id],
     queryFn: async () => {
@@ -54,10 +59,9 @@ function SublotPage() {
   const enteredPcs = items.reduce((a: number, i: any) => a + i.pcs, 0);
   const enteredNet = items.reduce((a: number, i: any) => a + Number(i.net_weight ?? 0), 0);
   const holds = items.filter((i: any) => i.hold_flag).length;
-  const missingPhotos = items.filter((i: any) => !i.photo_url).length;
   const poolFree = pool.filter((p: any) => !p.assigned_item_id).length;
   const freeSlots = slots.filter((x: any) => !x.assigned_item_id).length;
-  const sealed = ["sealed", "exported", "closed"].includes(s.status);
+  const sealed = ["sealed", "photography", "ready_to_export", "exported", "closed"].includes(s.status);
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
     setBusy(label);
@@ -66,7 +70,6 @@ function SublotPage() {
 
   const checks = [
     { ok: recon?.passed === true, label: "Reconciliation passed" },
-    { ok: missingPhotos === 0 && items.length > 0, label: `All photos matched (${missingPhotos} missing)` },
     { ok: holds === 0, label: `No open holds (${holds})` },
     { ok: poolFree === 0, label: `HUID pool empty (${poolFree} left)` },
     { ok: freeSlots >= items.length, label: `Enough tag slots (${freeSlots} for ${items.length})` },
@@ -146,15 +149,6 @@ function SublotPage() {
               </div>
             </Box>
           )}
-          {isMgr && (
-            <Box title="Photographer">
-              <select className="h-12 w-full rounded-md border bg-background px-3" value={s.photographer_id ?? ""} onChange={(e) => run("photog", () => db.from("sublots").update({ photographer_id: e.target.value || null }).eq("id", id))}>
-                <option value="">— unassigned —</option>
-                {data.photographers.map((p: any) => <option key={p.user_id} value={p.user_id}>{p.profiles?.name ?? p.user_id}</option>)}
-              </select>
-              <Link to="/photo/$sublotId" params={{ sublotId: id }} className="text-sm font-semibold underline">Open shot list</Link>
-            </Box>
-          )}
         </TabsContent>
 
         <TabsContent value="tag slots">
@@ -165,12 +159,7 @@ function SublotPage() {
           <p className="mt-2 text-xs text-muted-foreground">The pool should hold exactly one HUID per declared piece.</p>
         </TabsContent>
         <TabsContent value="items"><ItemsPanel sublotId={id} canEdit={isMgr} onChange={refetch} /></TabsContent>
-        <TabsContent value="photos">
-          <Box title="Photos">
-            <p>{items.length - missingPhotos} of {items.length} matched.</p>
-            <Link to="/photo/$sublotId" params={{ sublotId: id }} className="font-semibold underline">Shot list & ZIP upload</Link>
-          </Box>
-        </TabsContent>
+        <TabsContent value="photos"><PhotoPanel sublot={s} isMgr={isMgr} onChange={refetch} /></TabsContent>
 
         <TabsContent value="seal & export" className="space-y-3">
           {!sealed && (
@@ -188,11 +177,17 @@ function SublotPage() {
             <Box title="Exports">
               <div className="grid gap-2 sm:grid-cols-3">
                 <Button className="h-14" disabled={!!busy} onClick={() => run("sheet", async () => { const { buf } = await buildSheet(id, settings.export_mapping); downloadBlob(buf, `${lot.lot_no}-S${s.sublot_no}.xlsx`); })}>Filled ERP sheet (Mode 1)</Button>
-                <Button className="h-14" variant="secondary" disabled={!!busy} onClick={() => run("photos", async () => { const z = await buildRenamedPhotoZip(id, (n, t) => setBusy(`photos ${n}/${t}`)); downloadBlob(z.blob, z.name); })}>Renamed photos ZIP</Button>
-                <Button className="h-14" variant="outline" disabled={!!busy} onClick={() => run("zip", async () => { const z = await buildManualZip(id, settings.export_mapping, name, (n, t) => setBusy(`zip ${n}/${t}`)); downloadBlob(z.blob, z.name); })}>Full manual ZIP</Button>
+                <Button className="h-14" variant="outline" disabled={!!busy} onClick={() => run("zip", async () => { const l = await links({ data: { sublotId: id } }); const z = await buildManualZip(id, settings.export_mapping, name, l, (n, t) => setBusy(`zip ${n}/${t}`)); downloadBlob(z.blob, z.name); })}>Full manual ZIP (sheet + photos)</Button>
               </div>
               {busy && <p className="text-sm font-semibold">Working: {busy}…</p>}
-              {s.status === "sealed" && <Button variant="outline" onClick={() => run("exp", () => rpc("mark_exported", { p_sublot: id }))}>Mark as exported</Button>}
+              {["sealed", "ready_to_export"].includes(s.status) && <Button variant="outline" onClick={() => run("exp", () => rpc("mark_exported", { p_sublot: id }))}>Mark as exported</Button>}
+              {["sealed", "photography", "ready_to_export"].includes(s.status) && (
+                <Button variant="destructive" disabled={!!busy} onClick={() => {
+                  const r = prompt("UNSEAL this sublot?\nTag numbers go back to the list, filenames are cleared and every uploaded photo is deleted. This is logged permanently.\n\nReason (required):");
+                  if (!r?.trim()) return;
+                  void run("unseal", async () => { const x = await unseal({ data: { sublotId: id, reason: r } }); toast.success(`Unsealed — ${x.deleted} photo(s) deleted`); });
+                }}>Unseal…</Button>
+              )}
               <Button variant="outline" onClick={() => run("clear", async () => {
                 if (!confirm("Physically emptied the trays? This frees them for the next batch.")) return;
                 const { data: ss } = await db.from("tray_sessions").select("id").eq("sublot_id", id).neq("status", "cleared");
