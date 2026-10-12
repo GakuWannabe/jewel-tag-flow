@@ -10,7 +10,7 @@ export function HuidPanel({ sublot, expectedPieces, canEdit, onDone }: { sublot:
   const [dupes, setDupes] = useState<any[]>([]);
   const { data: pool = [], refetch } = useQuery({
     queryKey: ["pool-admin", sublot.id],
-    queryFn: async () => (await db.from("huid_pool").select("*").eq("sublot_id", sublot.id).is("deleted_at", null).order("huid")).data ?? [],
+    queryFn: async () => (await db.rpc("huid_pool_admin", { p_sublot: sublot.id })).data ?? [],
   });
 
   const load = async (f: File) => {
