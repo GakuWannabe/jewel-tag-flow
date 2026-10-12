@@ -7,6 +7,7 @@ export interface Settings {
   ageing_minutes: number;
   photo_name_template: string;
   export_mapping: MapRow[];
+  cors_origins: string[];
 }
 export const DEFAULT_TEMPLATE = "{COMPCODE}{IC}{ser_no}.jpg";
 
@@ -21,6 +22,7 @@ export function useSettings() {
         ageing_minutes: Number(m.ageing_minutes ?? 30),
         photo_name_template: String(m.photo_name_template ?? DEFAULT_TEMPLATE),
         export_mapping: (m.export_mapping as MapRow[]) ?? [],
+        cors_origins: Array.isArray(m.cors_origins) ? (m.cors_origins as string[]) : ["https://snap-jewel-stream.lovable.app", "http://localhost:5173"],
       };
     },
   });

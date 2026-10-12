@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Move, Wand2, CheckCircle2 } from "lucide-react";
+import { Move, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +13,7 @@ import { TrayGrid, Legend, type CellState } from "./TrayGrid";
 import type { useStation } from "@/lib/station";
 import { useSync } from "@/lib/offline";
 import { db, rpc, errMsg, fmt3 } from "@/lib/db";
-import { suggestHuids, hasConfusable, normHuid, validHuid } from "@/lib/huid-match";
+import { hasConfusable, normHuid, validHuid } from "@/lib/huid-match";
 import { HOLD_LABEL, type HoldFlag, type Item } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -30,36 +30,20 @@ function Grid({ snap, stateOf, selected, onTap, sub, editMode, onMove }: { snap:
   return <TrayGrid rows={snap.tray.rows} columns={snap.tray.columns} trayCode={snap.tray.tray_code} stateOf={stateOf} selected={selected} onTap={onTap} sub={sub} editMode={editMode} onMove={onMove} />;
 }
 
-function NextTrayBanner({ snap }: { snap: Snap }) {
-  if (!snap.tagsLeft) return null;
+// Blind count: never says how many products remain — staff decide from the physical packet.
+function NextTrayBanner({ snap, locked }: { snap: Snap; locked: boolean }) {
+  if (locked) return null;
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-info p-3 text-info-foreground">
-      <span className="text-lg font-bold">{snap.tagsLeft} more product{snap.tagsLeft > 1 ? "s" : ""} of this sublot need another tray.</span>
-      <Link to="/station" search={{ sublot: snap.sublot.id }} className="ml-auto rounded-lg bg-background px-4 py-3 font-bold text-foreground">Load next tray →</Link>
-    </div>
+    <Link to="/station" search={{ sublot: snap.sublot.id }} className="block rounded-xl border-2 border-dashed p-4 text-center text-lg font-bold">Load another tray →</Link>
   );
 }
 
 /* ---------------- STEP 2 · LOAD ---------------- */
 export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
-  const { status } = useSync();
   const [edit, setEdit] = useState(false);
   const [pending, setPending] = useState<{ from: number; to: number } | null>(null);
-  const tried = useRef(false);
   const byComp = new Map(snap.items.map((i) => [i.compartment_no, i]));
   const canLoad = !locked && ["empty", "loaded"].includes(snap.session.status);
-
-  const autoFill = async () => {
-    try {
-      const n = await rpc<number>("auto_load", { p_session: snap.session.id });
-      await refresh();
-      toast.success(n ? `${n} product${n > 1 ? "s" : ""} placed in the first free compartments` : "Nothing left to place");
-    } catch (e) { toast.error(errMsg(e)); }
-  };
-  useEffect(() => {
-    if (tried.current || !canLoad || status === "offline") return;
-    if (snap.items.length === 0 && (snap.tagsLeft ?? 0) > 0) { tried.current = true; void autoFill(); }
-  }, [snap.items.length, snap.tagsLeft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tap = (n: number) => {
     if (!canLoad) return;
@@ -80,16 +64,15 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="num rounded-lg bg-card px-3 py-2 text-lg font-bold">{snap.items.length} in this tray</span>
         <div className="ml-auto flex gap-2">
-          {canLoad && <Button variant="outline" className="h-11" onClick={() => void autoFill()} disabled={status === "offline"}><Wand2 className="mr-1 h-4 w-4" />Auto-fill</Button>}
           {!locked && <Button variant={edit ? "default" : "outline"} className="h-11" onClick={() => setEdit(!edit)}><Move className="mr-1 h-4 w-4" />{edit ? "Done editing" : "Edit"}</Button>}
         </div>
       </div>
       <p className="rounded-lg bg-muted p-3 text-base font-semibold">
-        {edit ? "Drag a product to another compartment (or tap it, then tap the new spot)." : canLoad ? "Products are placed in order. Tap a compartment to add or remove a product." : "Loading is finished for this tray. Use Edit to move a product."}
+        {edit ? "Drag a product to another compartment (or tap it, then tap the new spot)." : canLoad ? "Tap every compartment that has a product in it. Tap again to clear it." : "Loading is finished for this tray. Use Edit to move a product."}
       </p>
       <Grid snap={snap} stateOf={(n) => (byComp.has(n) ? "loaded" : "empty")} onTap={tap} editMode={edit} onMove={(from, to) => setPending({ from, to })} />
       <Legend only={["empty", "loaded"]} />
-      <NextTrayBanner snap={snap} />
+      <NextTrayBanner snap={snap} locked={locked} />
       <Button className="h-16 w-full text-xl" disabled={!snap.items.length} onClick={() => go("weigh")}>Next: Weighing →</Button>
 
       <AlertDialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
@@ -270,14 +253,29 @@ function MatchPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
   const [picked, setPicked] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [manual, setManual] = useState("");
-  const net = item.net_weight != null ? Number(item.net_weight) : 0;
   const free = useMemo(() => snap.pool.filter((p) => !p.assigned_item_id), [snap.pool]);
-  const suggestions = useMemo(() => (net > 0 && current.length === 0 ? suggestHuids(free, net, item.pcs) : []), [free, net, item.pcs, current.length]);
+  const online = status !== "offline";
+  // Weight matching happens on the server; we only ever receive HUID strings.
+  const [suggestions, setSuggestions] = useState<string[][]>([]);
+  useEffect(() => {
+    if (!online || current.length || item.net_weight == null) { setSuggestions([]); return; }
+    let live = true;
+    void db.rpc("suggest_huids", { p_item: item.id }).then(({ data }: any) => { if (live) setSuggestions((data ?? []).map((r: any) => r.huids)); });
+    return () => { live = false; };
+  }, [item.id, item.net_weight, item.pcs, online, current.length, free.length]);
+  const [found, setFound] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!online) { setFound(null); return; }
+    let live = true;
+    const t = setTimeout(() => {
+      void db.rpc("suggest_huids", { p_item: item.id, p_fragment: q }).then(({ data, error }: any) => { if (live) setFound(error ? null : (data ?? []).map((r: any) => r.huids[0])); });
+    }, 200);
+    return () => { live = false; clearTimeout(t); };
+  }, [item.id, q, online, free.length]);
   const list = useMemo(() => {
-    const f = free.filter((p) => !picked.includes(p.huid) && (!q || p.huid.includes(q.toUpperCase())));
-    if (net > 0 && item.pcs === 1) f.sort((a, b) => Math.abs(Number(a.piece_weight ?? 1e9) - net) - Math.abs(Number(b.piece_weight ?? 1e9) - net));
-    return f;
-  }, [free, picked, q, net, item.pcs]);
+    const src = found ?? free.filter((p) => !q || p.huid.includes(q)).map((p) => p.huid); // offline: local pool strings
+    return src.filter((h) => !picked.includes(h));
+  }, [found, free, q, picked]);
 
   const commit = async (h: string[]) => {
     await run("assign_item_huids", { p_item: item.id, p_huids: h }, `HUID ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
@@ -332,11 +330,10 @@ function MatchPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
             <div>
               <div className="mb-1 text-sm font-bold uppercase text-muted-foreground">Best weight match</div>
               <div className="grid gap-2 sm:grid-cols-3">
-                {suggestions.map((s) => (
-                  <button key={s.rows.map((r) => r.id).join()} type="button" disabled={locked} onClick={() => void commit(s.rows.map((r) => r.huid))}
+                {suggestions.map((hs) => (
+                  <button key={hs.join()} type="button" disabled={locked} onClick={() => void commit(hs)}
                     className="rounded-lg border-2 border-primary bg-background p-2 text-left active:bg-accent">
-                    {s.rows.map((r) => <div key={r.id} className="num flex justify-between text-lg font-bold"><span>{r.huid}</span><span>{fmt3(r.piece_weight)}</span></div>)}
-                    <div className="num text-xs text-muted-foreground">Σ {fmt3(s.sum)} · off by {fmt3(s.diff)}</div>
+                    {hs.map((h) => <div key={h} className="num text-xl font-bold tracking-wider">{h}</div>)}
                   </button>
                 ))}
               </div>
@@ -344,11 +341,10 @@ function MatchPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
           )}
           <Input className="num h-12 text-lg uppercase" placeholder="Search HUID (type any part)" value={q} onChange={(e) => setQ(e.target.value.toUpperCase())} />
           <div className="grid max-h-[22rem] grid-cols-2 gap-2 overflow-auto sm:grid-cols-3">
-            {list.map((p) => (
-              <button key={p.id} type="button" disabled={locked} onClick={() => pick(p.huid)}
+            {list.map((h) => (
+              <button key={h} type="button" disabled={locked} onClick={() => pick(h)}
                 className="num flex flex-col items-start rounded-lg border-2 bg-background p-2 text-left active:bg-accent">
-                <span className="text-xl font-bold tracking-wider">{p.huid}</span>
-                {p.piece_weight != null && <span className="text-xs text-muted-foreground">{fmt3(p.piece_weight)} g</span>}
+                <span className="text-xl font-bold tracking-wider">{h}</span>
               </button>
             ))}
             {list.length === 0 && <p className="col-span-full p-3 text-center text-muted-foreground">No free HUIDs{q ? " match" : " left"}.</p>}
@@ -402,8 +398,8 @@ export function FinishStep({ snap, run, locked, go }: StepProps) {
         </Button>
       )}
       {closed && <p className="rounded-lg bg-success p-4 text-center text-lg font-bold text-success-foreground">Tray {snap.tray.tray_code} is finished.</p>}
-      <NextTrayBanner snap={snap} />
-      {closed && !snap.tagsLeft && !locked && <Button variant="secondary" className="h-16 w-full text-xl" onClick={() => void closeSublot()}>All trays done — Close sublot</Button>}
+      <NextTrayBanner snap={snap} locked={locked} />
+      {closed && !locked && <Button variant="secondary" className="h-16 w-full text-xl" onClick={() => void closeSublot()}>All trays done — Close sublot</Button>}
       <Button variant="outline" className="h-14 w-full" onClick={() => nav({ to: "/station" })}>Back to station</Button>
     </div>
   );

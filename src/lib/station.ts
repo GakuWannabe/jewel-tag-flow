@@ -13,7 +13,6 @@ export interface Snap {
   itemHuids: Record<string, string[]>;
   sublotGross: number[]; // gross weights of OTHER sessions' items, for the running average
   tagNumbers: number[]; // current (non-superseded) tag slots for the sublot
-  tagsLeft: number | null; // products of this sublot not yet placed in any tray
   fetchedAt: number;
 }
 
@@ -24,13 +23,12 @@ async function fetchSnap(sessionId: string): Promise<Snap> {
     .eq("id", sessionId)
     .single();
   if (error) throw new Error(error.message);
-  const [items, pool, ih, others, tags, left] = await Promise.all([
+  const [items, pool, ih, others, tags] = await Promise.all([
     db.from("items").select("*").eq("tray_session_id", sessionId).is("deleted_at", null),
-    db.from("huid_pool").select("id,sublot_id,huid,piece_weight,assigned_item_id,deleted_at").eq("sublot_id", s.sublot_id).is("deleted_at", null).order("created_at"),
+    db.from("huid_pool").select("id,sublot_id,huid,assigned_item_id,deleted_at").eq("sublot_id", s.sublot_id).is("deleted_at", null).order("created_at"),
     db.from("item_huids").select("item_id,position,huid_pool(huid), items!inner(sublot_id)").is("removed_at", null).eq("items.sublot_id", s.sublot_id),
     db.from("items").select("gross_weight").eq("sublot_id", s.sublot_id).neq("tray_session_id", sessionId).is("deleted_at", null).not("gross_weight", "is", null),
     db.from("tag_slots").select("ser_no").eq("sublot_id", s.sublot_id).is("superseded_at", null).order("ser_no"),
-    db.rpc("tags_left_to_load", { p_sublot: s.sublot_id }),
   ]);
   const itemHuids: Record<string, string[]> = {};
   for (const r of (ih.data ?? []).sort((a: any, b: any) => a.position - b.position)) (itemHuids[r.item_id] ??= []).push(r.huid_pool.huid);
@@ -47,7 +45,6 @@ async function fetchSnap(sessionId: string): Promise<Snap> {
     itemHuids,
     sublotGross: (others.data ?? []).map((x: any) => Number(x.gross_weight)),
     tagNumbers: (tags.data ?? []).map((t: any) => t.ser_no),
-    tagsLeft: typeof left.data === "number" ? left.data : null,
     fetchedAt: Date.now(),
   };
 }
@@ -67,10 +64,8 @@ export function applyOp(snap: Snap, op: Op): Snap {
           ic: null, ser_no: null, actual_ser_no: null, photo_filename: null, photo_url: null, source_photo_name: null,
           hold_flag: null, hold_note: null, deleted_at: null, weighed_at: null, photo_matched_at: null,
         });
-        if (s.tagsLeft != null) s.tagsLeft = Math.max(0, s.tagsLeft - 1);
       } else if (!a.p_occupied && ex && ex.gross_weight == null) {
         s.items = s.items.filter((i) => i !== ex);
-        if (s.tagsLeft != null) s.tagsLeft += 1;
       }
       s.session.status = s.items.length ? "loaded" : "empty";
       return s;
@@ -96,7 +91,7 @@ export function applyOp(snap: Snap, op: Op): Snap {
       for (const h of a.p_huids as string[]) {
         const row = s.pool.find((p) => p.huid === h);
         if (row) s.pool = s.pool.map((p) => (p.huid === h ? { ...p, assigned_item_id: a.p_item } : p));
-        else s.pool.push({ id: `local-${h}`, sublot_id: s.sublot.id, huid: h, piece_weight: null, assigned_item_id: a.p_item, deleted_at: null });
+        else s.pool.push({ id: `local-${h}`, sublot_id: s.sublot.id, huid: h, assigned_item_id: a.p_item, deleted_at: null });
       }
       s.itemHuids[a.p_item] = a.p_huids;
       return s;
@@ -127,7 +122,7 @@ export function useStation(sessionId: string) {
   }, [sessionId]);
 
   useEffect(() => {
-    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? { ...c, tagNumbers: c.tagNumbers ?? [], tagsLeft: c.tagsLeft ?? null }); });
+    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? { ...c, tagNumbers: c.tagNumbers ?? [] }); });
     void refresh();
     return onFlushed(() => void refresh());
   }, [sessionId, refresh]);

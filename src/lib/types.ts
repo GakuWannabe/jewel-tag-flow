@@ -21,7 +21,7 @@ export interface Item {
   hold_flag: HoldFlag | null; hold_note: string | null; deleted_at: string | null;
   weighed_at: string | null; photo_matched_at: string | null;
 }
-export interface PoolRow { id: string; sublot_id: string; huid: string; piece_weight: number | null; assigned_item_id: string | null; deleted_at: string | null }
+export interface PoolRow { id: string; sublot_id: string; huid: string; assigned_item_id: string | null; deleted_at: string | null }
 
 export const HOLD_LABEL: Record<HoldFlag, string> = {
   damaged: "Damaged", wrong_item: "Wrong item", re_photo: "Re-photo", weight_disputed: "Weight disputed",

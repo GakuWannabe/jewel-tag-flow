@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { botGuard, json, photoStatus, PHOTO_BUCKET } from "@/lib/bot-auth.server";
 
 const MAX = 12 * 1024 * 1024;
@@ -6,7 +7,8 @@ const MAX = 12 * 1024 * 1024;
 export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/items/$sequence/photo")({
   server: {
     handlers: {
-      POST: async ({ request, params }) => {
+      OPTIONS: preflight,
+      POST: cors(async ({ request, params }) => {
         const g = await botGuard(request, "photo", params.sublotId);
         if (g instanceof Response) return g;
         const seq = Number(params.sequence);
@@ -14,8 +16,10 @@ export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/items/
         const { data: s } = await g.admin.from("sublots").select("status").eq("id", params.sublotId).maybeSingle();
         if (!s) return json({ error: "Sublot not found" }, 404);
         if (s.status !== "photography") return json({ error: `Sublot is ${s.status}; not open for photography` }, 409);
-        const { data: item } = await g.admin.from("items").select("id,photo_filename").eq("sublot_id", params.sublotId).eq("sequence", seq).is("deleted_at", null).maybeSingle();
+        const { data: item } = await g.admin.from("items").select("id,photo_filename,photo_url").eq("sublot_id", params.sublotId).eq("sequence", seq).is("deleted_at", null).maybeSingle();
         if (!item?.photo_filename) return json({ error: "No item at that sequence" }, 404);
+        const overwrite = new URL(request.url).searchParams.get("overwrite") === "true";
+        if (item.photo_url && !overwrite) return json({ error: `Sequence ${seq} already photographed` }, 409);
 
         const form = await request.formData().catch(() => null);
         const file = form?.get("file");
@@ -31,8 +35,13 @@ export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/items/
         await g.admin.from("items").update({ photo_url: path, photo_matched_at: new Date().toISOString(), photo_skipped_at: null, photo_skip_reason: null, photo_delivered_at: null }).eq("id", item.id);
 
         const { data: all } = await g.admin.from("items").select("photo_url,photo_skipped_at").eq("sublot_id", params.sublotId).is("deleted_at", null);
-        return json({ ok: true, filename: item.photo_filename, done_count: (all ?? []).filter((i: any) => photoStatus(i) === "done").length, total: (all ?? []).length });
-      },
+        return json({
+          ok: true, sequence: seq, filename: item.photo_filename,
+          done_count: (all ?? []).filter((i: any) => photoStatus(i) === "done").length,
+          skipped_count: (all ?? []).filter((i: any) => photoStatus(i) === "skipped").length,
+          total: (all ?? []).length,
+        });
+      }),
     },
   },
 });

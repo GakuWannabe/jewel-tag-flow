@@ -1348,7 +1348,6 @@ export type Database = {
         Args: { p_sublot: string; p_user: string }
         Returns: undefined
       }
-      auto_load: { Args: { p_session: string }; Returns: number }
       check_huids: {
         Args: { p_huids: string[] }
         Returns: {
@@ -1379,6 +1378,30 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      huid_pool_admin: {
+        Args: { p_sublot: string }
+        Returns: {
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_item_id: string | null
+          created_at: string
+          created_by: string | null
+          delete_reason: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          huid: string
+          id: string
+          piece_weight: number | null
+          source: string
+          sublot_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "huid_pool"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       import_huids: {
         Args: { p_rows: Json; p_sublot: string }
@@ -1445,7 +1468,12 @@ export type Database = {
         Returns: undefined
       }
       start_weighing: { Args: { p_session: string }; Returns: undefined }
-      tags_left_to_load: { Args: { p_sublot: string }; Returns: number }
+      suggest_huids: {
+        Args: { p_fragment?: string; p_item: string }
+        Returns: {
+          huids: string[]
+        }[]
+      }
       unassign_item_huids: { Args: { p_item: string }; Returns: undefined }
       unseal_sublot: {
         Args: { p_reason: string; p_sublot: string }

@@ -106,7 +106,7 @@ function Lots() {
       const { data: lot, error } = await db.from("lots").insert({
         lot_no: f.lot_no.trim().toUpperCase(), branch_id: f.branch_id, received_date: f.received_date, notes: f.notes || null,
       }).select("id").single();
-      if (error) throw new Error(error.message.includes("duplicate") ? "That lot number already exists" : error.message);
+      if (error) throw new Error(error.message.includes("duplicate") ? "That lot number already exists for this branch" : error.message);
       const { error: e2 } = await db.from("lot_targets").insert({ lot_id: lot.id, total_gross_weight: gross, total_net_weight: net, total_pcs: pcs });
       if (e2) throw e2;
       toast.success("Lot created — now add its sublots");

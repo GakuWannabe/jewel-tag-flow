@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { z } from "zod";
 import { botGuard, json } from "@/lib/bot-auth.server";
 
@@ -7,7 +8,8 @@ const Body = z.object({ reason: z.string().trim().min(1).max(500) });
 export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/items/$sequence/skip")({
   server: {
     handlers: {
-      POST: async ({ request, params }) => {
+      OPTIONS: preflight,
+      POST: cors(async ({ request, params }) => {
         const g = await botGuard(request, "photo", params.sublotId);
         if (g instanceof Response) return g;
         const seq = Number(params.sequence);
@@ -24,7 +26,7 @@ export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/items/
         await g.admin.from("items").update({ photo_skipped_at: now, photo_skip_reason: parsed.data.reason }).eq("id", item.id);
         await g.admin.from("photo_skips").insert({ item_id: item.id, sublot_id: params.sublotId, sequence: seq, reason: parsed.data.reason, device_id: g.bot.id });
         return json({ ok: true, sequence: seq, skipped_at: now });
-      },
+      }),
     },
   },
 });

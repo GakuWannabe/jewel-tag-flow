@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { botGuard, json } from "@/lib/bot-auth.server";
 import { loadBatch } from "@/lib/batch";
 
 export const Route = createFileRoute("/api/public/batches/$sublotId/items")({
   server: {
     handlers: {
-      GET: async ({ request, params }) => {
+      OPTIONS: preflight,
+      GET: cors(async ({ request, params }) => {
         const g = await botGuard(request, "bot", params.sublotId);
         if (g instanceof Response) return g;
         try {
@@ -15,7 +17,7 @@ export const Route = createFileRoute("/api/public/batches/$sublotId/items")({
         } catch (e) {
           return json({ error: (e as Error).message }, 404);
         }
-      },
+      }),
     },
   },
 });

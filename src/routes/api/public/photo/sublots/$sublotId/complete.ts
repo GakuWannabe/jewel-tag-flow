@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { botGuard, json, photoStatus } from "@/lib/bot-auth.server";
 
 export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/complete")({
   server: {
     handlers: {
-      POST: async ({ request, params }) => {
+      OPTIONS: preflight,
+      POST: cors(async ({ request, params }) => {
         const g = await botGuard(request, "photo", params.sublotId);
         if (g instanceof Response) return g;
         const { data: s } = await g.admin.from("sublots").select("status").eq("id", params.sublotId).maybeSingle();
@@ -20,7 +22,7 @@ export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/comple
           done_count: (items ?? []).filter((i: any) => photoStatus(i) === "done").length,
           skipped_count: (items ?? []).filter((i: any) => photoStatus(i) === "skipped").length,
         });
-      },
+      }),
     },
   },
 });
