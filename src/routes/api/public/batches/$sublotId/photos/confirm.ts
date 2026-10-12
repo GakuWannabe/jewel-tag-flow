@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { z } from "zod";
 import { botGuard, json, PHOTO_BUCKET } from "@/lib/bot-auth.server";
 
@@ -8,7 +9,8 @@ const Body = z.object({ filenames: z.array(z.string().min(1).max(200)).min(1).ma
 export const Route = createFileRoute("/api/public/batches/$sublotId/photos/confirm")({
   server: {
     handlers: {
-      POST: async ({ request, params }) => {
+      OPTIONS: preflight,
+      POST: cors(async ({ request, params }) => {
         const g = await botGuard(request, "bot", params.sublotId);
         if (g instanceof Response) return g;
         const parsed = Body.safeParse(await request.json().catch(() => null));
@@ -31,7 +33,7 @@ export const Route = createFileRoute("/api/public/batches/$sublotId/photos/confi
           }
         }
         return json({ confirmed: hit?.length ?? 0, deleted, remaining });
-      },
+      }),
     },
   },
 });

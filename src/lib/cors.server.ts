@@ -37,8 +37,9 @@ export async function preflight({ request }: { request: Request }) {
 }
 
 /** Wraps a handler so EVERY response (success, error, crash) carries the CORS headers. */
-export function cors<C extends { request: Request }>(handler: (ctx: C) => Promise<Response>) {
-  return async (ctx: C): Promise<Response> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function cors(handler: (ctx: any) => Promise<Response>) {
+  return async (ctx: any): Promise<Response> => {
     let res: Response;
     try {
       res = await handler(ctx);

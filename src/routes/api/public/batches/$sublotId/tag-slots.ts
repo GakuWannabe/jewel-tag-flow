@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { z } from "zod";
 import { botGuard, json } from "@/lib/bot-auth.server";
 
@@ -8,7 +9,8 @@ const Body = z.object({ headers: z.array(z.string()).min(1).max(300), rows: z.ar
 export const Route = createFileRoute("/api/public/batches/$sublotId/tag-slots")({
   server: {
     handlers: {
-      POST: async ({ request, params }) => {
+      OPTIONS: preflight,
+      POST: cors(async ({ request, params }) => {
         const g = await botGuard(request, "bot", params.sublotId);
         if (g instanceof Response) return g;
         const parsed = Body.safeParse(await request.json().catch(() => null));
@@ -35,7 +37,7 @@ export const Route = createFileRoute("/api/public/batches/$sublotId/tag-slots")(
         if (error) return json({ error: error.message }, 409);
         const sers = [...seen].sort((a, b) => a - b);
         return json({ imported: data, min: sers[0], max: sers[sers.length - 1] });
-      },
+      }),
     },
   },
 });

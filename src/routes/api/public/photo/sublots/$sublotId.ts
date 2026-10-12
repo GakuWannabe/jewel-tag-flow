@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { botGuard, json, photoStatus } from "@/lib/bot-auth.server";
 
 // Never returns weights, piece weights or declared totals — the photo device must not see them.
 export const Route = createFileRoute("/api/public/photo/sublots/$sublotId")({
   server: {
     handlers: {
-      GET: async ({ request, params }) => {
+      OPTIONS: preflight,
+      GET: cors(async ({ request, params }) => {
         const g = await botGuard(request, "photo", params.sublotId);
         if (g instanceof Response) return g;
         const { data: s } = await g.admin.from("sublots").select("id,sublot_no,status, lots(lot_no)").eq("id", params.sublotId).is("deleted_at", null).maybeSingle();
@@ -26,7 +28,7 @@ export const Route = createFileRoute("/api/public/photo/sublots/$sublotId")({
             filename: i.photo_filename, pcs: i.pcs, status: photoStatus(i),
           })),
         });
-      },
+      }),
     },
   },
 });

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { botGuard, json, photoStatus, PHOTO_BUCKET } from "@/lib/bot-auth.server";
 
 const MAX = 12 * 1024 * 1024;
@@ -6,7 +7,8 @@ const MAX = 12 * 1024 * 1024;
 export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/items/$sequence/photo")({
   server: {
     handlers: {
-      POST: async ({ request, params }) => {
+      OPTIONS: preflight,
+      POST: cors(async ({ request, params }) => {
         const g = await botGuard(request, "photo", params.sublotId);
         if (g instanceof Response) return g;
         const seq = Number(params.sequence);
@@ -32,7 +34,7 @@ export const Route = createFileRoute("/api/public/photo/sublots/$sublotId/items/
 
         const { data: all } = await g.admin.from("items").select("photo_url,photo_skipped_at").eq("sublot_id", params.sublotId).is("deleted_at", null);
         return json({ ok: true, filename: item.photo_filename, done_count: (all ?? []).filter((i: any) => photoStatus(i) === "done").length, total: (all ?? []).length });
-      },
+      }),
     },
   },
 });

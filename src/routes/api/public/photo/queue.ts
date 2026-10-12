@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute } from "@tanstack/react-router";
+import { cors, preflight } from "@/lib/cors.server";
 import { botGuard, json, photoStatus } from "@/lib/bot-auth.server";
 
 export const Route = createFileRoute("/api/public/photo/queue")({
   server: {
     handlers: {
-      GET: async ({ request }) => {
+      OPTIONS: preflight,
+      GET: cors(async ({ request }) => {
         const g = await botGuard(request, "photo");
         if (g instanceof Response) return g;
         const { data: subs, error } = await g.admin.from("sublots")
@@ -26,7 +28,7 @@ export const Route = createFileRoute("/api/public/photo/queue")({
             skipped_count: its.filter((i: any) => photoStatus(i) === "skipped").length,
           };
         }));
-      },
+      }),
     },
   },
 });
