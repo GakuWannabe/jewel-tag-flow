@@ -11,21 +11,28 @@ export const Route = createFileRoute("/api/public/photo/sublots/$sublotId")({
       GET: cors(async ({ request, params }) => {
         const g = await botGuard(request, "photo", params.sublotId);
         if (g instanceof Response) return g;
-        const { data: s } = await g.admin.from("sublots").select("id,sublot_no,status, lots(lot_no)").eq("id", params.sublotId).is("deleted_at", null).maybeSingle();
+        const { data: s } = await g.admin.from("sublots").select("id,sublot_no,status, lots(lot_no), product_types(name)").eq("id", params.sublotId).is("deleted_at", null).maybeSingle();
         if (!s) return json({ error: "Sublot not found" }, 404);
         if (!["photography", "ready_to_export"].includes(s.status)) return json({ error: `Sublot is ${s.status}; not open for photography` }, 409);
         const { data: items } = await g.admin.from("items")
-          .select("sequence,compartment_no,ser_no,compcode,ic,photo_filename,pcs,photo_url,photo_skipped_at, tray_sessions(trays(tray_code,rows,columns))")
+          .select("sequence,compartment_no,ser_no,compcode,ic,photo_filename,pcs,photo_url,photo_skipped_at,photo_skip_reason,photo_matched_at, tray_sessions(trays(tray_code,rows,columns))")
           .eq("sublot_id", params.sublotId).is("deleted_at", null).not("sequence", "is", null).order("sequence");
         const trays = new Map<string, any>();
         for (const i of items ?? []) { const t = i.tray_sessions?.trays; if (t && !trays.has(t.tray_code)) trays.set(t.tray_code, { tray_code: t.tray_code, rows: t.rows, columns: t.columns }); }
         const first = items?.[0];
+        const all = items ?? [];
         return json({
           sublot_id: s.id, lot_no: s.lots?.lot_no, sublot_no: s.sublot_no, compcode: first?.compcode ?? null, ic: first?.ic ?? null,
+          product_name: s.product_types?.name ?? null, status: s.status,
+          total_items: all.length,
+          done_count: all.filter((i: any) => photoStatus(i) === "done").length,
+          skipped_count: all.filter((i: any) => photoStatus(i) === "skipped").length,
           trays: [...trays.values()],
           items: (items ?? []).map((i: any) => ({
             sequence: i.sequence, tray_code: i.tray_sessions?.trays?.tray_code, compartment_no: i.compartment_no, ser_no: i.ser_no,
             filename: i.photo_filename, pcs: i.pcs, status: photoStatus(i),
+            skip_reason: photoStatus(i) === "skipped" ? i.photo_skip_reason ?? null : null,
+            photographed_at: i.photo_url ? i.photo_matched_at ?? null : null,
           })),
         });
       }),
