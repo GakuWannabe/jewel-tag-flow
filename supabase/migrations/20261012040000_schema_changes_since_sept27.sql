@@ -1,0 +1,18 @@
+-- Index of schema changes made after 27 Sept 2026 (comments only; nothing executes here).
+-- The full SQL for each change is committed under drizzle/migrations/, in apply order:
+--   0000_station_steps_realtime_delete.sql  realtime publication, step-flow RPCs, delete_lot, lot_deletions
+--   0001_add_ready_to_export_status.sql      ALTER TYPE sublot_status ADD VALUE 'ready_to_export'
+--   0002_photos_after_seal.sql               bot_clients.kind, items.photo_skipped_at / photo_skip_reason /
+--                                            photo_delivered_at, photo_skips, sublot_unseals, seal/unseal changes
+--   0003_lot_totals_sublot_pricing.sql       lot_targets, vendor/purity/charges per sublot
+--   0004_blind_recon_cors_schema_fixes.sql   drops auto_load + tags_left_to_load, hides huid_pool.piece_weight,
+--                                            suggest_huids, huid_pool_admin, item_huids position >= 1,
+--                                            UNIQUE (branch_id, lot_no)
+-- items.source_photo_name already existed in 20260927110024 (initial schema).
+--
+-- Storage bucket (created with the storage tool, not SQL — bucket rows cannot be written by migrations):
+--   item-photos   private, no storage.objects policies (only server routes using the service role read/write)
+--   equivalent:   insert into storage.buckets (id, name, public) values ('item-photos','item-photos', false);
+--
+-- Data seeded outside migrations: settings.cors_origins =
+--   ["https://snap-jewel-stream.lovable.app","http://localhost:5173"]

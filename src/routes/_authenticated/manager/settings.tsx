@@ -30,6 +30,8 @@ function SettingsPage() {
     try { await saveSetting(k, v); toast.success("Saved"); qc.invalidateQueries({ queryKey: ["settings"] }); } catch (e) { toast.error(errMsg(e)); }
   };
 
+  const [origins, setOrigins] = useState("");
+  useEffect(() => { if (s) setOrigins(s.cors_origins.join("\n")); }, [s]);
   const { data: bots = [], refetch } = useQuery({ queryKey: ["bots"], queryFn: async () => (await db.from("bot_clients").select("*").order("created_at")).data ?? [] });
   const [botName, setBotName] = useState("");
   const [kind, setKind] = useState<"bot" | "photo">("photo");
@@ -69,6 +71,12 @@ function SettingsPage() {
           <Button variant="outline" onClick={() => setMap([...map, { field: "narration", column: "" }])}>Add row</Button>
           <Button onClick={() => save("export_mapping", map.filter((m) => m.column.trim()))}>Save mapping</Button>
         </div>
+      </Card>
+
+      <Card title="Allowed web addresses for the photo app" className="mt-4">
+        <p className="text-sm text-muted-foreground">One address per line, e.g. https://snap-jewel-stream.lovable.app. Only these sites may call the device endpoints from a browser.</p>
+        <textarea className="num min-h-28 w-full rounded-md border bg-background p-2" value={origins} onChange={(e) => setOrigins(e.target.value)} />
+        <Button onClick={() => save("cors_origins", [...new Set(origins.split(/\s+/).map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean))])}>Save addresses</Button>
       </Card>
 
       <Card title="Device keys — photo app & ERP bot" className="mt-4">
