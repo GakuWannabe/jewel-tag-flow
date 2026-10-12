@@ -260,7 +260,7 @@ function MatchPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
   useEffect(() => {
     if (!online || current.length || item.net_weight == null) { setSuggestions([]); return; }
     let live = true;
-    void db.rpc("suggest_huids", { p_item: item.id }).then(({ data }) => { if (live) setSuggestions((data ?? []).map((r: any) => r.huids)); });
+    void db.rpc("suggest_huids", { p_item: item.id }).then(({ data }: any) => { if (live) setSuggestions((data ?? []).map((r: any) => r.huids)); });
     return () => { live = false; };
   }, [item.id, item.net_weight, item.pcs, online, current.length, free.length]);
   const [found, setFound] = useState<string[] | null>(null);
@@ -268,7 +268,7 @@ function MatchPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
     if (!online) { setFound(null); return; }
     let live = true;
     const t = setTimeout(() => {
-      void db.rpc("suggest_huids", { p_item: item.id, p_fragment: q }).then(({ data, error }) => { if (live) setFound(error ? null : (data ?? []).map((r: any) => r.huids[0])); });
+      void db.rpc("suggest_huids", { p_item: item.id, p_fragment: q }).then(({ data, error }: any) => { if (live) setFound(error ? null : (data ?? []).map((r: any) => r.huids[0])); });
     }, 200);
     return () => { live = false; clearTimeout(t); };
   }, [item.id, q, online, free.length]);
