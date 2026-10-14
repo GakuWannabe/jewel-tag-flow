@@ -11,7 +11,7 @@ import {
 import { Keypad } from "./Keypad";
 import { TrayGrid, Legend, type CellState } from "./TrayGrid";
 import type { useStation } from "@/lib/station";
-import { useSync } from "@/lib/offline";
+import { useSync, enqueue } from "@/lib/offline";
 import { db, rpc, errMsg, fmt3 } from "@/lib/db";
 import { hasConfusable, normHuid, validHuid } from "@/lib/huid-match";
 import { HOLD_LABEL, type HoldFlag, type Item } from "@/lib/types";
@@ -45,10 +45,33 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
   const byComp = new Map(snap.items.map((i) => [i.compartment_no, i]));
   const canLoad = !locked && ["empty", "loaded"].includes(snap.session.status);
 
+  const [rm, setRm] = useState<Item | null>(null);
+  const [rmReason, setRmReason] = useState("");
+  const press = useRef<{ t: ReturnType<typeof setTimeout> | null; fired: boolean }>({ t: null, fired: false });
+  const startPress = (e: React.PointerEvent) => {
+    if (edit || locked) return;
+    const el = (e.target as HTMLElement).closest("[data-comp]") as HTMLElement | null;
+    const it = el ? byComp.get(Number(el.dataset.comp)) : undefined;
+    press.current.fired = false;
+    if (!it || it.gross_weight == null) return;
+    press.current.t = setTimeout(() => {
+      press.current.fired = true;
+      if (it.ser_no != null) return void toast.error("This tag is sealed — a manager must unseal first");
+      setRmReason(""); setRm(it);
+    }, 600);
+  };
+  const endPress = () => { if (press.current.t) clearTimeout(press.current.t); press.current.t = null; };
+  const doRemove = async () => {
+    if (!rm || !rmReason.trim()) return;
+    try { await rpc("remove_item", { p_item: rm.id, p_reason: rmReason.trim() }); toast.success(`Compartment ${pad(rm.compartment_no)} removed`); setRm(null); await refresh(); }
+    catch (err) { toast.error(errMsg(err)); }
+  };
+
   const tap = (n: number) => {
+    if (press.current.fired) { press.current.fired = false; return; }
     if (!canLoad) return;
     const item = byComp.get(n);
-    if (item?.gross_weight != null) return toast.error("Already weighed — use Edit to move it");
+    if (item?.gross_weight != null) return toast.error("Already weighed — press and hold to remove it, or use Edit to move it");
     void run("set_compartment", { p_session: snap.session.id, p_compartment: n, p_occupied: !item, p_item_id: item?.id ?? crypto.randomUUID() }, `Compartment ${n}`);
   };
   const doMove = () => {
@@ -62,8 +85,10 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
   const fillAll = () => {
     if (!canLoad || anyWeighed) return;
     const total = snap.tray.rows * snap.tray.columns;
+    const ops = [];
     for (let n = 1; n <= total; n++) if (!byComp.has(n))
-      void run("set_compartment", { p_session: snap.session.id, p_compartment: n, p_occupied: true, p_item_id: crypto.randomUUID() }, `Compartment ${n}`);
+      ops.push({ fn: "set_compartment", args: { p_session: snap.session.id, p_compartment: n, p_occupied: true, p_item_id: crypto.randomUUID() }, label: `Compartment ${n}`, sublotId: snap.sublot.id });
+    void enqueue(ops); // one write — never loses compartments
     toast.success("Every compartment marked — tap the empty ones to clear them");
   };
 
@@ -79,10 +104,29 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
       <p className="rounded-lg bg-muted p-3 text-base font-semibold">
         {edit ? "Drag a product to another compartment (or tap it, then tap the new spot)." : canLoad ? "Tap every compartment that has a product in it. Tap again to clear it." : "Loading is finished for this tray. Use Edit to move a product."}
       </p>
-      <Grid snap={snap} stateOf={(n) => (byComp.has(n) ? "loaded" : "empty")} onTap={tap} editMode={edit} onMove={(from, to) => setPending({ from, to })} />
+      <div onPointerDown={startPress} onPointerUp={endPress} onPointerLeave={endPress} onPointerCancel={endPress} onContextMenu={(e) => e.preventDefault()}>
+        <Grid snap={snap} stateOf={(n) => (byComp.has(n) ? "loaded" : "empty")} onTap={tap} editMode={edit} onMove={(from, to) => setPending({ from, to })} />
+      </div>
       <Legend only={["empty", "loaded"]} />
+      {!locked && snap.items.some((i) => i.gross_weight != null) && <p className="text-sm text-muted-foreground">Marked one too many? Press and hold a weighed compartment to remove it.</p>}
       <NextTrayBanner snap={snap} locked={locked} />
       <Button className="h-16 w-full text-xl" disabled={!snap.items.length} onClick={() => go("weigh")}>Next: Weighing →</Button>
+
+      <AlertDialog open={!!rm} onOpenChange={(o) => !o && setRm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this compartment?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Compartment <b>{rm && pad(rm.compartment_no)}</b> will be removed from the sublot and its HUIDs go back to the list. This is logged with your name.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input className="h-12" placeholder="Reason (required)" value={rmReason} onChange={(e) => setRmReason(e.target.value)} />
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-12">Cancel</AlertDialogCancel>
+            <Button variant="destructive" className="h-12" disabled={!rmReason.trim()} onClick={() => void doRemove()}>Remove</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
         <AlertDialogContent>
@@ -110,11 +154,24 @@ export function WeighStep({ snap, run, locked, go }: StepProps) {
   const byComp = new Map(items.map((i) => [i.compartment_no, i]));
   const firstOpen = items.find((i) => i.gross_weight == null)?.compartment_no ?? items[0]?.compartment_no ?? null;
   const [sel, setSel] = useState<number | null>(firstOpen);
-  // Narration carries forward within this tray session only (component remounts per session/sublot).
-  const [carry, setCarry] = useState<string>(() => {
-    const saved = snap.items.filter((i) => i.gross_weight != null).sort((a, b) => String(a.weighed_at ?? "").localeCompare(String(b.weighed_at ?? "")));
-    return saved[saved.length - 1]?.narration ?? "";
-  });
+  // Narration carries forward within this tray session: kept in a ref and persisted per session
+  // (tagged with the sublot) so it survives re-renders, refreshes and restarts.
+  const narrKey = `tl-narr-${snap.session.id}`;
+  const carryRef = useRef<string | null>(null);
+  if (carryRef.current == null) {
+    let v: string | null = null;
+    try { const raw = localStorage.getItem(narrKey); const o = raw ? JSON.parse(raw) : null; if (o && o.sublot === snap.sublot.id) v = String(o.v ?? ""); } catch { /* ignore */ }
+    if (v == null) {
+      const saved = snap.items.filter((i) => i.gross_weight != null).sort((a, b) => String(a.weighed_at ?? "").localeCompare(String(b.weighed_at ?? "")));
+      v = saved[saved.length - 1]?.narration ?? "";
+    }
+    carryRef.current = v;
+  }
+  const [carry, setCarryState] = useState<string>(carryRef.current);
+  const setCarry = (v: string) => {
+    carryRef.current = v; setCarryState(v);
+    try { localStorage.setItem(narrKey, JSON.stringify({ sublot: snap.sublot.id, v })); } catch { /* ignore */ }
+  };
   const started = useRef(false);
   useEffect(() => {
     if (!started.current && !locked && snap.session.station === "loading" && items.length) {
