@@ -234,7 +234,7 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
             </Field>
             <Field label="Pieces (HUIDs)" hint={!pt ? "Pick a product first" : fixedPcs(pt) ? `Filled in as tags × ${fixedPcs(pt)} — change it if needed` : `Pcs per tag varies (${pt.allowed_pcs.join(", ")}) — type the total from the packet`}>
               <Input className="num h-14 text-xl" inputMode="numeric" value={f.pieces ?? ""} onChange={(e) => { setPiecesTouched(true); setF({ ...f, pieces: e.target.value.replace(/\D/g, "") }); }} placeholder="0" />
-              {showSuggest && <button type="button" className="text-left text-xs font-semibold underline" onClick={() => { setF({ ...f, pieces: suggested }); setPiecesTouched(false); }}>Use {f.tags} × {fixedPcs(pt)} = {suggested}?</button>}PLACEHOLDERcs} = {suggested}?</button>}
+              {showSuggest && <button type="button" className="text-left text-xs font-semibold underline" onClick={() => { setF({ ...f, pieces: suggested }); setPiecesTouched(false); }}>Use {f.tags} × {fixedPcs(pt)} = {suggested}?</button>}
             </Field>
             <Field label="Declared net weight (g)" hint="Never shown to staff">
               <Input className="num h-14 text-xl" inputMode="decimal" value={f.net ?? ""} onChange={(e) => setF({ ...f, net: e.target.value })} placeholder="0.000" />
