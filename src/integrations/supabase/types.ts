@@ -165,6 +165,51 @@ export type Database = {
           },
         ]
       }
+      huid_deletions: {
+        Row: {
+          deleted_at: string
+          deleted_by: string
+          huid: string
+          huid_pool_id: string
+          id: string
+          reason: string
+          sublot_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by: string
+          huid: string
+          huid_pool_id: string
+          id?: string
+          reason: string
+          sublot_id: string
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string
+          huid?: string
+          huid_pool_id?: string
+          id?: string
+          reason?: string
+          sublot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "huid_deletions_huid_pool_id_fkey"
+            columns: ["huid_pool_id"]
+            isOneToOne: false
+            referencedRelation: "huid_pool"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "huid_deletions_sublot_id_fkey"
+            columns: ["sublot_id"]
+            isOneToOne: false
+            referencedRelation: "sublots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       huid_pool: {
         Row: {
           assigned_at: string | null
@@ -1496,6 +1541,10 @@ export type Database = {
       delete_lot: {
         Args: { p_confirm: string; p_lot: string }
         Returns: string[]
+      }
+      delete_pool_huid: {
+        Args: { p_huid_pool_id: string; p_reason: string }
+        Returns: undefined
       }
       has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
