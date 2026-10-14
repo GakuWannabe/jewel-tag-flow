@@ -11,17 +11,23 @@ export const Route = createFileRoute("/_authenticated/manager/master")({
 
 const CONFIGS: MasterConfig[] = [
   { table: "branches", title: "Branches", conflictKey: "branch_code", order: "branch_code",
-    cols: [{ key: "branch_code", label: "Code" }, { key: "branch_name", label: "Name" }, { key: "active", label: "Active", type: "bool" }],
+    refs: [{ table: "lots", col: "branch_id", label: "lots" }],
+    cols: [{ key: "branch_code", label: "Code", required: true, example: "W" }, { key: "branch_name", label: "Name", required: true, example: "BZ" }, { key: "active", label: "Active", type: "bool" }],
     transform: (r) => ({ ...r, branch_code: r.branch_code ? String(r.branch_code).toUpperCase() : r.branch_code }) },
   { table: "vendors", title: "Vendors", conflictKey: "code", order: "code",
-    cols: [{ key: "code", label: "Code" }, { key: "name", label: "Name" }, { key: "active", label: "Active", type: "bool" }] },
+    refs: [{ table: "sublots", col: "vendor_id", label: "sublots" }, { table: "lots", col: "vendor_id", label: "lots" }],
+    cols: [{ key: "code", label: "Code", required: true, example: "V001" }, { key: "name", label: "Name", required: true, example: "Example Vendor" }, { key: "active", label: "Active", type: "bool" }] },
   { table: "product_types", title: "Product types", conflictKey: "base_code", order: "base_code",
-    cols: [{ key: "base_code", label: "Base code" }, { key: "name", label: "Name" }, { key: "default_pcs", label: "Default pcs", type: "number" }, { key: "huid_pieces_per_tag", label: "HUID/tag", type: "number" }, { key: "active", label: "Active", type: "bool" }],
+    refs: [{ table: "sublots", col: "product_type_id", label: "sublots" }],
+    cols: [{ key: "base_code", label: "Base code", required: true, example: "KC" }, { key: "name", label: "Name", required: true, example: "Ring" }, { key: "default_pcs", label: "Default pcs", type: "number", required: true, default: 1, example: "1" }, { key: "huid_pieces_per_tag", label: "HUID/tag", type: "number", required: true, default: 1, example: "1" }, { key: "active", label: "Active", type: "bool" }],
     transform: (r) => ({ ...r, base_code: r.base_code ? String(r.base_code).toUpperCase() : r.base_code, ...(r.default_pcs != null ? { huid_pieces_per_tag: r.huid_pieces_per_tag ?? r.default_pcs } : {}) }) },
   { table: "purities", title: "Purities", conflictKey: "purity_label", order: "purity_label",
-    cols: [{ key: "melting", label: "Melting", type: "number" }, { key: "purity_label", label: "Purity label" }, { key: "metal", label: "Metal" }, { key: "active", label: "Active", type: "bool" }] },
+    refs: [{ table: "sublots", col: "purity_id", label: "sublots" }, { table: "lots", col: "purity_id", label: "lots" }],
+    cols: [{ key: "melting", label: "Melting", type: "number", required: true, example: "91.66" }, { key: "purity_label", label: "Purity label", required: true, example: "916" }, { key: "metal", label: "Metal", required: true, example: "GOLD" }, { key: "active", label: "Active", type: "bool" }] },
   { table: "trays", title: "Trays", conflictKey: "tray_code", order: "tray_code",
-    cols: [{ key: "tray_code", label: "Letter" }, { key: "tray_type", label: "Type" }, { key: "rows", label: "Rows", type: "number" }, { key: "columns", label: "Columns", type: "number" }, { key: "active", label: "Active", type: "bool" }],
+    refs: [{ table: "tray_sessions", col: "tray_id", label: "tray sessions" }],
+    duplicate: ["tray_type", "rows", "columns"],
+    cols: [{ key: "tray_code", label: "Letter", required: true, example: "C" }, { key: "tray_type", label: "Type", required: true, example: "SMALL_18" }, { key: "rows", label: "Rows", type: "number", required: true, example: "6" }, { key: "columns", label: "Columns", type: "number", required: true, example: "3" }, { key: "active", label: "Active", type: "bool" }],
     transform: (r) => ({ ...r, ...(r.rows != null && r.columns != null ? { compartment_count: Number(r.rows) * Number(r.columns) } : {}) }) },
 ];
 

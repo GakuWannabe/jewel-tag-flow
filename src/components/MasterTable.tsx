@@ -7,16 +7,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-export interface Col { key: string; label: string; type?: "text" | "number" | "bool"; required?: boolean }
+export interface Col { key: string; label: string; type?: "text" | "number" | "bool"; required?: boolean; default?: number; example?: string }
+export interface Ref { table: string; col: string; label: string }
 export interface MasterConfig {
   table: string; title: string; cols: Col[]; conflictKey: string; order: string;
   transform?: (row: Record<string, unknown>) => Record<string, unknown>;
+  refs?: Ref[];
+  duplicate?: string[];
 }
 
+const blank = (v: unknown) => v == null || String(v).trim() === "";
+
 function coerce(col: Col, v: unknown) {
-  if (col.type === "number") return v === "" || v == null ? null : Number(v);
+  if (col.type === "number") return blank(v) ? (col.default ?? null) : Number(v);
   if (col.type === "bool") return v === true || String(v).toLowerCase() === "true" || v === "1" || String(v).toLowerCase() === "yes";
   return v == null ? null : String(v).trim();
+}
+
+function exampleFor(c: Col) {
+  if (c.example != null) return c.example;
+  if (c.type === "bool") return "true";
+  if (c.type === "number") return String(c.default ?? 1);
+  return c.label;
 }
 
 export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: boolean }) {
@@ -42,34 +54,94 @@ export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: bool
     toast.success("Saved"); refresh(); return true;
   };
 
+  const downloadTemplate = () => {
+    const csv = Papa.unparse({ fields: cfg.cols.map((c) => c.key), data: [cfg.cols.map(exampleFor)] });
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `${cfg.table}_template.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const importCsv = (file: File) => {
     Papa.parse<Record<string, string>>(file, {
       header: true, skipEmptyLines: true,
       complete: async (res) => {
         try {
-          const rows = res.data.map((r) => {
+          const errors: string[] = [];
+          const rows = res.data.map((r, i) => {
+            const rowNo = i + 2; // row 1 is the header
             let o: Record<string, unknown> = {};
-            for (const c of cfg.cols) if (r[c.key] !== undefined) o[c.key] = coerce(c, r[c.key]);
+            for (const c of cfg.cols) {
+              const v = r[c.key];
+              if (c.type === "number") {
+                if (blank(v)) {
+                  if (c.default == null && c.required) errors.push(`Row ${rowNo}: ${c.key} is empty`);
+                } else if (Number.isNaN(Number(v))) errors.push(`Row ${rowNo}: ${c.key} "${v}" is not a number`);
+              } else if (c.required && c.type !== "bool" && blank(v)) errors.push(`Row ${rowNo}: ${c.key} is empty`);
+              if (v !== undefined || (c.type === "number" && c.default != null)) o[c.key] = coerce(c, v);
+            }
             if (cfg.transform) o = cfg.transform(o);
             return o;
           });
+          if (!rows.length) errors.push("File has no data rows");
+          if (errors.length) {
+            toast.error(`Nothing imported. ${errors.slice(0, 5).join("; ")}${errors.length > 5 ? ` (+${errors.length - 5} more)` : ""}`);
+            return;
+          }
+          // single upsert statement = all rows or none
           const { error } = await db.from(cfg.table).upsert(rows, { onConflict: cfg.conflictKey });
           if (error) throw error;
           toast.success(`Imported ${rows.length} rows`); refresh();
-        } catch (e) { toast.error(errMsg(e)); }
+        } catch (e) { toast.error(`Nothing imported. ${errMsg(e)}`); }
       },
     });
   };
+
+  const remove = async (row: Record<string, unknown>) => {
+    const id = String(row.id);
+    const uses: string[] = [];
+    for (const r of cfg.refs ?? []) {
+      const { count, error } = await db.from(r.table).select("id", { count: "exact", head: true }).eq(r.col, id);
+      if (error) { toast.error(error.message); return; }
+      if (count) uses.push(`${count} ${r.label}`);
+    }
+    const name = String(row[cfg.conflictKey] ?? "");
+    if (uses.length) {
+      if (!row.active) { toast.info(`Used by ${uses.join(", ")} — already inactive.`); return; }
+      if (window.confirm(`"${name}" is used by ${uses.join(", ")} and cannot be deleted.\n\nDeactivate it instead?`)) await save({ active: false }, id);
+      return;
+    }
+    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+    const { data: del, error } = await db.from(cfg.table).delete().eq("id", id).select("id");
+    if (error) { toast.error(error.message); return; }
+    if (!del?.length) {
+      if (window.confirm(`The database did not allow deleting "${name}".\n\nDeactivate it instead?`)) await save({ active: false }, id);
+      return;
+    }
+    toast.success("Deleted"); refresh();
+  };
+
+  const duplicate = cfg.duplicate
+    ? (row: Record<string, unknown>) => {
+        const d: Record<string, unknown> = {};
+        for (const k of cfg.duplicate!) d[k] = row[k];
+        setDraft(d);
+        toast.info("Copied into the add row — enter a new code.");
+      }
+    : undefined;
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">CSV headers: <code className="num">{cfg.cols.map((c) => c.key).join(",")}</code></p>
         {canEdit && (
-          <label className="cursor-pointer rounded-md border-2 border-dashed border-input px-3 py-2 text-sm font-semibold">
-            Import CSV
-            <input type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files?.[0] && importCsv(e.target.files[0])} />
-          </label>
+          <div className="flex gap-2">
+            <Button variant="outline" className="h-10" onClick={downloadTemplate}>Download template</Button>
+            <label className="cursor-pointer rounded-md border-2 border-dashed border-input px-3 py-2 text-sm font-semibold">
+              Import CSV
+              <input type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ""; }} />
+            </label>
+          </div>
         )}
       </div>
       <div className="overflow-x-auto rounded-lg border bg-card">
@@ -78,7 +150,7 @@ export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: bool
             <tr>{cfg.cols.map((c) => <th key={c.key} className="px-2 py-2 font-semibold">{c.label}</th>)}{canEdit && <th />}</tr>
           </thead>
           <tbody>
-            {data.map((row) => <Row key={String(row.id)} row={row} cols={cfg.cols} canEdit={canEdit} onSave={(r) => save(r, String(row.id))} />)}
+            {data.map((row) => <Row key={String(row.id)} row={row} cols={cfg.cols} canEdit={canEdit} onSave={(r) => save(r, String(row.id))} onDelete={() => remove(row)} onDuplicate={duplicate ? () => duplicate(row) : undefined} />)}
             {canEdit && (
               <tr className="border-t-2 bg-secondary/50">
                 {cfg.cols.map((c) => (
@@ -100,7 +172,10 @@ export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: bool
   );
 }
 
-function Row({ row, cols, canEdit, onSave }: { row: Record<string, unknown>; cols: Col[]; canEdit: boolean; onSave: (r: Record<string, unknown>) => Promise<boolean> }) {
+function Row({ row, cols, canEdit, onSave, onDelete, onDuplicate }: {
+  row: Record<string, unknown>; cols: Col[]; canEdit: boolean;
+  onSave: (r: Record<string, unknown>) => Promise<boolean>; onDelete: () => void; onDuplicate?: () => void;
+}) {
   const [edit, setEdit] = useState<Record<string, unknown> | null>(null);
   return (
     <tr className="border-t">
@@ -119,7 +194,13 @@ function Row({ row, cols, canEdit, onSave }: { row: Record<string, unknown>; col
               <Button size="sm" onClick={async () => { if (await onSave(edit)) setEdit(null); }}>Save</Button>
               <Button size="sm" variant="ghost" onClick={() => setEdit(null)}>Cancel</Button>
             </>
-          ) : <Button size="sm" variant="outline" onClick={() => setEdit({ ...row })}>Edit</Button>}
+          ) : (
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" onClick={() => setEdit({ ...row })}>Edit</Button>
+              {onDuplicate && <Button size="sm" variant="outline" onClick={onDuplicate}>Duplicate</Button>}
+              <Button size="sm" variant="destructive" onClick={onDelete}>Delete</Button>
+            </div>
+          )}
         </td>
       )}
     </tr>
