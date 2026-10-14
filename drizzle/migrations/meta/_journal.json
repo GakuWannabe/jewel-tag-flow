@@ -57,6 +57,13 @@
       "when": 1792011306740,
       "tag": "0007_remove_item_staff",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792012025153,
+      "tag": "0008_correct_item_and_void_removal",
+      "breakpoints": true
     }
   ]
 }
