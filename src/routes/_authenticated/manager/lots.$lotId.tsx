@@ -11,6 +11,8 @@ import { db, fmt3, errMsg } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { useMasters, Field, Choice } from "./lots.index";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 export const Route = createFileRoute("/_authenticated/manager/lots/$lotId")({
   head: () => ({ meta: [{ title: "Lot — Tagging Line" }, { name: "description", content: "Lot totals and its sublots." }] }),
@@ -278,5 +280,33 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Searchable, keyboard-usable picker for long master lists (filters on code and name). */
+function SearchPick({ value, onChange, options, placeholder }: { value?: string; onChange: (v: string) => void; options: { v: string; label: string; search: string }[]; placeholder: string }) {
+  const [open, setOpen] = useState(false);
+  const cur = options.find((o) => o.v === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" role="combobox" aria-expanded={open} className="h-14 w-full justify-between text-lg font-normal">
+          <span className={cn("truncate", !cur && "text-muted-foreground")}>{cur?.label ?? placeholder}</span><ChevronRight className="h-4 w-4 rotate-90 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command filter={(val, q) => (val.toLowerCase().includes(q.toLowerCase()) ? 1 : 0)}>
+          <CommandInput className="h-12 text-base" placeholder="Type code or name…" />
+          <CommandList className="max-h-72">
+            <CommandEmpty>No match.</CommandEmpty>
+            {options.map((o) => (
+              <CommandItem key={o.v} value={`${o.search} ${o.v}`} className="h-11 text-base" onSelect={() => { onChange(o.v); setOpen(false); }}>
+                {value === o.v && <Check className="mr-2 h-4 w-4" />}{o.label}
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
