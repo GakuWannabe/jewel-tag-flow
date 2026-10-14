@@ -36,6 +36,13 @@
       "when": 1791777590559,
       "tag": "0004_blind_recon_cors_schema_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792007168646,
+      "tag": "0005_tag_slots_assumed",
+      "breakpoints": true
     }
   ]
 }
