@@ -160,7 +160,7 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
     const p = m.productTypes.find((x: any) => x.id === next.product_type_id);
     const fp = fixedPcs(p);
     const sug = fp && Number(next.tags) > 0 ? String(Number(next.tags) * fp) : "";
-    setF(piecesTouched || !fp ? next : { ...next, pieces: sug });
+    setF(piecesTouched ? next : { ...next, pieces: sug });
   };
   const copyLast = () => {
     if (!last) return;
