@@ -672,7 +672,9 @@ export type Database = {
       product_types: {
         Row: {
           active: boolean
+          allowed_pcs: number[]
           base_code: string
+          branch_id: string
           created_at: string
           created_by: string | null
           default_pcs: number
@@ -684,7 +686,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          allowed_pcs?: number[]
           base_code: string
+          branch_id: string
           created_at?: string
           created_by?: string | null
           default_pcs?: number
@@ -696,7 +700,9 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          allowed_pcs?: number[]
           base_code?: string
+          branch_id?: string
           created_at?: string
           created_by?: string | null
           default_pcs?: number
@@ -706,7 +712,15 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "product_types_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

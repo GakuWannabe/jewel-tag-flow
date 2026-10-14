@@ -43,6 +43,13 @@
       "when": 1792007168646,
       "tag": "0005_tag_slots_assumed",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792007663558,
+      "tag": "0006_product_types_branch_allowed_pcs_master_delete",
+      "breakpoints": true
     }
   ]
 }
