@@ -156,11 +156,14 @@ export function WeighStep({ snap, run, locked, go }: StepProps) {
 }
 
 function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item: Item; snap: Snap; locked: boolean; run: Station["run"]; carry: string; onSaved: (n: string) => void; onDone: () => void }) {
+  const ownSaved = item.gross_weight != null;
   const [gross, setGross] = useState(item.gross_weight != null ? Number(item.gross_weight).toFixed(3) : "");
   const [less, setLess] = useState(Number(item.less_weight ?? 0).toFixed(3));
   const [field, setField] = useState<"gross" | "less">("gross");
-  const [pcs, setPcs] = useState(item.pcs);
-  const ownSaved = item.gross_weight != null;
+  const allowed = snap.sublot.allowed_pcs?.length ? snap.sublot.allowed_pcs : [snap.sublot.default_pcs];
+  const pcsOptions = [...new Set([...allowed, ...(ownSaved && !allowed.includes(item.pcs) ? [item.pcs] : [])])].sort((a, b) => a - b);
+  // One allowed value: fixed. Several: staff must pick — never guessed — unless this item was already saved.
+  const [pcs, setPcs] = useState<number | null>(allowed.length === 1 ? allowed[0] : ownSaved ? item.pcs : null);
   const [narr, setNarr] = useState(ownSaved ? (item.narration ?? "") : carry);
   const [carried, setCarried] = useState(!ownSaved && carry !== "");
   const [hold, setHold] = useState<HoldFlag | "">("");
@@ -174,7 +177,7 @@ function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item
   const save = async () => {
     if (!(g > 0)) return toast.error("Enter gross weight");
     if (l < 0 || l > g) return toast.error("Less weight must be between 0 and gross");
-    if (!(pcs >= 1)) return toast.error("Pcs must be at least 1");
+    if (pcs == null) return toast.error("Tap how many pieces this tag has");
     if (pcs < assigned) return toast.error(`Remove HUIDs first: ${(snap.itemHuids[item.id] ?? []).slice(pcs).join(", ")}`);
     if (avg > 0 && (g > avg * 3 || g < avg / 3) && !confirm(`Gross ${g.toFixed(3)} g is far from the average ${avg.toFixed(3)} g. Save anyway?`)) return;
     await run("save_weight", { p_item: item.id, p_gross: g, p_less: l, p_pcs: pcs, p_narration: narr.trim() }, `Weight ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
@@ -202,10 +205,17 @@ function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item
       {!locked && <Keypad value={field === "gross" ? gross : less} onChange={field === "gross" ? setGross : setLess} />}
       <div className="flex items-center gap-2">
         <span className="font-bold">Pcs</span>
-        <Button type="button" variant="outline" className="h-12 w-12 text-2xl" disabled={locked || pcs <= 1}
-          onClick={() => { const n = pcs - 1; if (n < assigned) toast.error(`Remove HUIDs first: ${(snap.itemHuids[item.id] ?? []).slice(n).join(", ")}`); else setPcs(n); }}>−</Button>
-        <span className="num w-12 text-center text-2xl font-bold">{pcs}</span>
-        <Button type="button" variant="outline" className="h-12 w-12 text-2xl" disabled={locked} onClick={() => setPcs(pcs + 1)}>+</Button>
+        {allowed.length === 1 ? (
+          <span className="num rounded-lg bg-muted px-4 py-2 text-2xl font-bold">{pcs}</span>
+        ) : (
+          <>
+            {pcsOptions.map((p) => (
+              <button key={p} type="button" disabled={locked} onClick={() => { if (p < assigned) toast.error(`Remove HUIDs first: ${(snap.itemHuids[item.id] ?? []).slice(p).join(", ")}`); else setPcs(p); }}
+                className={cn("num h-12 w-16 rounded-lg border-2 text-xl font-bold", pcs === p ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>{p}</button>
+            ))}
+            {pcs == null && <span className="text-sm font-semibold text-destructive">Tap one</span>}
+          </>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
@@ -216,7 +226,7 @@ function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item
       </div>
       {!locked && (
         <>
-          <Button className="h-16 w-full text-xl font-bold" onClick={() => void save()}>Save & next</Button>
+          <Button className="h-16 w-full text-xl font-bold" disabled={pcs == null} onClick={() => void save()}>Save & next</Button>
           <details className="rounded-lg border p-2">
             <summary className="cursor-pointer font-semibold">Flag a problem (hold)</summary>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
