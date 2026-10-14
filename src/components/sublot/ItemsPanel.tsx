@@ -31,10 +31,14 @@ export function ItemsPanel({ sublotId, canEdit, onChange }: { sublotId: string; 
               <td className="font-sans">{i.hold_flag ? <span title={i.hold_note ?? ""} className="font-bold text-destructive">{HOLD_LABEL[i.hold_flag as HoldFlag]}{i.hold_note ? `: ${i.hold_note}` : ""}</span> : ""}</td>
               <td className="whitespace-nowrap p-1 font-sans">
                 {canEdit && i.hold_flag && <Button size="sm" onClick={() => act(() => rpc("clear_hold", { p_item: i.id, p_note: prompt("Note (optional)") ?? "" }))}>Clear hold</Button>}
+                {canEdit && !i.ser_no && <Button size="sm" variant="outline" className="ml-1" onClick={() => {
+                  const r = prompt(`MARKED BY MISTAKE — ${i.tray_sessions.trays.tray_code}-${String(i.compartment_no).padStart(2, "0")} (${fmt3(i.net_weight)} g, ${i.pcs} pcs)\nNo product was ever here. The target stays as declared (nothing added to Removed). HUIDs return to the pool. Logged permanently.\n\nReason (required):`);
+                  if (r?.trim()) void act(() => rpc("correct_item", { p_item: i.id, p_reason: r }));
+                }}>Marked by mistake</Button>}
                 {canEdit && !i.ser_no && <Button size="sm" variant="destructive" className="ml-1" onClick={() => {
-                  const r = prompt(`Remove ${i.tray_sessions.trays.tray_code}-${String(i.compartment_no).padStart(2, "0")} (${fmt3(i.net_weight)} g, ${i.pcs} pcs)?\nThis is logged permanently. Its HUIDs return to the pool; declared totals stay unchanged and the removal is recorded separately.\n\nReason (required):`);
-                  if (r) void act(() => rpc("remove_item", { p_item: i.id, p_reason: r }));
-                }}>Remove</Button>}
+                  const r = prompt(`PIECE REMOVED FROM LOT — ${i.tray_sessions.trays.tray_code}-${String(i.compartment_no).padStart(2, "0")} (${fmt3(i.net_weight)} g, ${i.pcs} pcs)\nThe target is lowered by 1 tag, ${i.pcs} pcs and ${fmt3(i.net_weight)} g (shown in the Removed column). HUIDs return to the pool. Logged permanently.\n\nReason (required):`);
+                  if (r?.trim()) void act(() => rpc("remove_item", { p_item: i.id, p_reason: r }));
+                }}>Piece removed from lot</Button>}
               </td>
             </tr>
           ))}
