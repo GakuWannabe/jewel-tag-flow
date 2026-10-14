@@ -192,10 +192,11 @@ function SublotPage() {
           {!sealed && (
             <Box title="Seal preconditions">
               <ul className="space-y-1">{checks.map((c) => <li key={c.label} className={c.ok ? "text-success" : "font-semibold text-destructive"}>{c.ok ? "✓" : "✗"} {c.label}</li>)}</ul>
-              {isMgr && (
-                <Button className="h-14 w-full text-lg" disabled={!!busy || !checks.every((c) => c.ok) || s.status !== "ready_to_seal"} onClick={() => {
-                  if (!confirm("Seal? Tag numbers will be assigned and the sublot locked.")) return;
-                  void run("seal", async () => { const n = await rpc<number>("seal_sublot", { p_sublot: id }); toast.success(`Sealed: ${n} tags assigned`); });
+              <p className="text-xs text-muted-foreground">Sealing normally happens automatically when reconciliation passes. Use this only to recover a sublot that is halted or waiting to seal.</p>
+              {isMgr && ["ready_to_seal", "halted"].includes(s.status) && (
+                <Button className="h-14 w-full text-lg" disabled={!!busy || !checks.every((c) => c.ok)} onClick={() => {
+                  if (!confirm("Seal? Tag numbers will be assigned, the sublot locked and sent to photography.")) return;
+                  void run("seal", async () => { const n = await rpc<number>("seal_sublot", { p_sublot: id }); toast.success(`Sealed: ${n} tags assigned — now in photography`); });
                 }}>Seal & assign tag slots</Button>
               )}
             </Box>

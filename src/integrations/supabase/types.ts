@@ -1504,9 +1504,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _do_seal: { Args: { p_sublot: string }; Returns: number }
       _is_service: { Args: never; Returns: boolean }
       _require_editable: { Args: { _sublot: string }; Returns: undefined }
       _require_worker: { Args: never; Returns: undefined }
+      _seal_blocker: { Args: { p_sublot: string }; Returns: string }
       assign_item_huids: {
         Args: { p_huids: string[]; p_item: string }
         Returns: undefined
