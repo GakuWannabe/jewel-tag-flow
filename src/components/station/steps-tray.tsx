@@ -48,7 +48,7 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
   const [rm, setRm] = useState<Item | null>(null);
   const [rmReason, setRmReason] = useState("");
   const press = useRef<{ t: ReturnType<typeof setTimeout> | null; fired: boolean }>({ t: null, fired: false });
-  const startPress = (e: React.PointerEvent) => {
+  const startPress = (e: import("react").PointerEvent) => {
     if (edit || locked) return;
     const el = (e.target as HTMLElement).closest("[data-comp]") as HTMLElement | null;
     const it = el ? byComp.get(Number(el.dataset.comp)) : undefined;
