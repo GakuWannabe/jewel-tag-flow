@@ -1119,6 +1119,7 @@ export type Database = {
       tag_slots: {
         Row: {
           assigned_item_id: string | null
+          assumed: boolean
           cmd: string | null
           compcode: string
           ic: string
@@ -1133,6 +1134,7 @@ export type Database = {
         }
         Insert: {
           assigned_item_id?: string | null
+          assumed?: boolean
           cmd?: string | null
           compcode: string
           ic: string
@@ -1147,6 +1149,7 @@ export type Database = {
         }
         Update: {
           assigned_item_id?: string | null
+          assumed?: boolean
           cmd?: string | null
           compcode?: string
           ic?: string

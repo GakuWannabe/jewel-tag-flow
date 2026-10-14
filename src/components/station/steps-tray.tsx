@@ -58,12 +58,21 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
     setPending(null);
   };
   const target = pending ? byComp.get(pending.to) : null;
+  const anyWeighed = snap.items.some((i) => i.gross_weight != null);
+  const fillAll = () => {
+    if (!canLoad || anyWeighed) return;
+    const total = snap.tray.rows * snap.tray.columns;
+    for (let n = 1; n <= total; n++) if (!byComp.has(n))
+      void run("set_compartment", { p_session: snap.session.id, p_compartment: n, p_occupied: true, p_item_id: crypto.randomUUID() }, `Compartment ${n}`);
+    toast.success("Every compartment marked — tap the empty ones to clear them");
+  };
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="num rounded-lg bg-card px-3 py-2 text-lg font-bold">{snap.items.length} in this tray</span>
         <div className="ml-auto flex gap-2">
+          {canLoad && <Button variant="outline" className="h-11" disabled={anyWeighed || edit} onClick={fillAll}>Fill whole tray</Button>}
           {!locked && <Button variant={edit ? "default" : "outline"} className="h-11" onClick={() => setEdit(!edit)}><Move className="mr-1 h-4 w-4" />{edit ? "Done editing" : "Edit"}</Button>}
         </div>
       </div>
@@ -101,6 +110,11 @@ export function WeighStep({ snap, run, locked, go }: StepProps) {
   const byComp = new Map(items.map((i) => [i.compartment_no, i]));
   const firstOpen = items.find((i) => i.gross_weight == null)?.compartment_no ?? items[0]?.compartment_no ?? null;
   const [sel, setSel] = useState<number | null>(firstOpen);
+  // Narration carries forward within this tray session only (component remounts per session/sublot).
+  const [carry, setCarry] = useState<string>(() => {
+    const saved = snap.items.filter((i) => i.gross_weight != null).sort((a, b) => String(a.weighed_at ?? "").localeCompare(String(b.weighed_at ?? "")));
+    return saved[saved.length - 1]?.narration ?? "";
+  });
   const started = useRef(false);
   useEffect(() => {
     if (!started.current && !locked && snap.session.station === "loading" && items.length) {
@@ -134,19 +148,21 @@ export function WeighStep({ snap, run, locked, go }: StepProps) {
         {done === items.length && <Button className="h-16 w-full text-xl" onClick={() => go(snap.pool.length ? "match" : "huids")}>All weighed — Next: HUIDs →</Button>}
       </div>
       <div>
-        {item ? <WeightPanel key={item.id} item={item} snap={snap} locked={locked} run={run} onDone={() => setSel(next(item.compartment_no))} />
+        {item ? <WeightPanel key={item.id} item={item} snap={snap} locked={locked} run={run} carry={carry} onSaved={setCarry} onDone={() => setSel(next(item.compartment_no))} />
           : <p className="rounded-lg border-2 border-dashed p-8 text-center text-muted-foreground">All products are weighed.</p>}
       </div>
     </div>
   );
 }
 
-function WeightPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Snap; locked: boolean; run: Station["run"]; onDone: () => void }) {
+function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item: Item; snap: Snap; locked: boolean; run: Station["run"]; carry: string; onSaved: (n: string) => void; onDone: () => void }) {
   const [gross, setGross] = useState(item.gross_weight != null ? Number(item.gross_weight).toFixed(3) : "");
   const [less, setLess] = useState(Number(item.less_weight ?? 0).toFixed(3));
   const [field, setField] = useState<"gross" | "less">("gross");
   const [pcs, setPcs] = useState(item.pcs);
-  const [narr, setNarr] = useState(item.narration ?? "");
+  const ownSaved = item.gross_weight != null;
+  const [narr, setNarr] = useState(ownSaved ? (item.narration ?? "") : carry);
+  const [carried, setCarried] = useState(!ownSaved && carry !== "");
   const [hold, setHold] = useState<HoldFlag | "">("");
   const [holdNote, setHoldNote] = useState("");
   const g = Number(gross || 0), l = Number(less || 0);
@@ -158,9 +174,11 @@ function WeightPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Sn
   const save = async () => {
     if (!(g > 0)) return toast.error("Enter gross weight");
     if (l < 0 || l > g) return toast.error("Less weight must be between 0 and gross");
-    if (pcs < assigned) return toast.error("This product already has more HUIDs than that. Remove them in the HUID step first.");
+    if (!(pcs >= 1)) return toast.error("Pcs must be at least 1");
+    if (pcs < assigned) return toast.error(`Remove HUIDs first: ${(snap.itemHuids[item.id] ?? []).slice(pcs).join(", ")}`);
     if (avg > 0 && (g > avg * 3 || g < avg / 3) && !confirm(`Gross ${g.toFixed(3)} g is far from the average ${avg.toFixed(3)} g. Save anyway?`)) return;
-    await run("save_weight", { p_item: item.id, p_gross: g, p_less: l, p_pcs: pcs, p_narration: narr }, `Weight ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
+    await run("save_weight", { p_item: item.id, p_gross: g, p_less: l, p_pcs: pcs, p_narration: narr.trim() }, `Weight ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
+    onSaved(narr.trim());
     toast.success(`${snap.tray.tray_code}-${pad(item.compartment_no)} saved`);
     onDone();
   };
@@ -184,10 +202,17 @@ function WeightPanel({ item, snap, locked, run, onDone }: { item: Item; snap: Sn
       {!locked && <Keypad value={field === "gross" ? gross : less} onChange={field === "gross" ? setGross : setLess} />}
       <div className="flex items-center gap-2">
         <span className="font-bold">Pcs</span>
-        {[1, 2].map((p) => (
-          <button key={p} type="button" onClick={() => setPcs(p)} className={cn("num h-12 w-16 rounded-lg border-2 text-xl font-bold", pcs === p ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>{p}</button>
-        ))}
-        <Input className="h-12 flex-1" placeholder="Narration (optional)" value={narr} onChange={(e) => setNarr(e.target.value)} />
+        <Button type="button" variant="outline" className="h-12 w-12 text-2xl" disabled={locked || pcs <= 1}
+          onClick={() => { const n = pcs - 1; if (n < assigned) toast.error(`Remove HUIDs first: ${(snap.itemHuids[item.id] ?? []).slice(n).join(", ")}`); else setPcs(n); }}>−</Button>
+        <span className="num w-12 text-center text-2xl font-bold">{pcs}</span>
+        <Button type="button" variant="outline" className="h-12 w-12 text-2xl" disabled={locked} onClick={() => setPcs(pcs + 1)}>+</Button>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Input className={cn("h-12", carried && "text-muted-foreground italic")} placeholder="Narration (optional)" value={narr} onChange={(e) => { setNarr(e.target.value); setCarried(false); }} />
+          {carried && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-muted px-1.5 text-xs font-semibold text-muted-foreground">carried</span>}
+        </div>
+        {narr !== "" && !locked && <Button type="button" variant="ghost" className="h-12" onClick={() => { setNarr(""); setCarried(false); }}>Clear</Button>}
       </div>
       {!locked && (
         <>

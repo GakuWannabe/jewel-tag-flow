@@ -75,3 +75,35 @@ export async function parseHuids(file: File): Promise<{ rows: HuidRow[]; errors:
   }
   return { rows, errors };
 }
+
+export interface ManualSlotRow extends SlotRow { assumed: boolean }
+export interface ManualSlotParse extends Omit<SlotParse, "rows"> { rows: ManualSlotRow[]; assumedCount: number; givenMax: number }
+
+/** Parse a typed list like "66-79, 81-108, 110-128". If `need` exceeds the list, continue from the highest given number — those are ASSUMED free. */
+export function parseTagList(text: string, ctx: { branch: string; baseCode: string; compcode?: string; need?: number }): ManualSlotParse {
+  const errors: string[] = [];
+  const nums: number[] = [];
+  const seen = new Set<number>();
+  for (const tok of text.split(/[\s,;]+/).filter(Boolean)) {
+    const m = tok.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) { errors.push(`"${tok}" is not a number or range`); continue; }
+    const a = Number(m[1]), b = m[2] ? Number(m[2]) : a;
+    if (a <= 0 || b < a) { errors.push(`Range "${tok}" is invalid`); continue; }
+    if (b - a > 5000) { errors.push(`Range "${tok}" is too large`); continue; }
+    for (let n = a; n <= b; n++) { if (seen.has(n)) errors.push(`Duplicate ser_no ${n}`); else { seen.add(n); nums.push(n); } }
+  }
+  const sorted = [...nums].sort((x, y) => x - y);
+  const givenMax = sorted[sorted.length - 1] ?? 0;
+  const gaps: number[] = [];
+  for (let i = 1; i < sorted.length; i++) for (let g = sorted[i - 1] + 1; g < sorted[i]; g++) gaps.push(g);
+  const compcode = ctx.compcode ?? "A", type = ctx.branch, ic = `${ctx.branch}${ctx.baseCode}`;
+  const mk = (ser_no: number, assumed: boolean): ManualSlotRow => ({ compcode, type, ic, ser_no, cmd: "C", assumed, raw: { COMPCODE: compcode, type, IC: ic, ser_no, cmd: "C" } });
+  const rows = sorted.map((n) => mk(n, false));
+  let assumedCount = 0;
+  if (ctx.need != null && sorted.length && rows.length < ctx.need) {
+    for (let n = givenMax + 1; rows.length < ctx.need; n++) { rows.push(mk(n, true)); assumedCount++; }
+  }
+  if (!rows.length) errors.push("No tag numbers entered");
+  const all = rows.map((r) => r.ser_no);
+  return { headers: [], rows, errors, count: rows.length, min: all[0] ?? 0, max: all[all.length - 1] ?? 0, gaps, assumedCount, givenMax };
+}
