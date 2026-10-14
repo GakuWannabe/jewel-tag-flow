@@ -228,6 +228,69 @@ export type Database = {
           },
         ]
       }
+      item_corrections: {
+        Row: {
+          compartment_no: number | null
+          corrected_at: string
+          corrected_by: string
+          gross_weight: number | null
+          huids: string | null
+          id: string
+          item_id: string
+          less_weight: number | null
+          net_weight: number | null
+          pcs: number
+          reason: string
+          sublot_id: string
+          tray_code: string | null
+        }
+        Insert: {
+          compartment_no?: number | null
+          corrected_at?: string
+          corrected_by?: string
+          gross_weight?: number | null
+          huids?: string | null
+          id?: string
+          item_id: string
+          less_weight?: number | null
+          net_weight?: number | null
+          pcs: number
+          reason: string
+          sublot_id: string
+          tray_code?: string | null
+        }
+        Update: {
+          compartment_no?: number | null
+          corrected_at?: string
+          corrected_by?: string
+          gross_weight?: number | null
+          huids?: string | null
+          id?: string
+          item_id?: string
+          less_weight?: number | null
+          net_weight?: number | null
+          pcs?: number
+          reason?: string
+          sublot_id?: string
+          tray_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_corrections_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_corrections_sublot_id_fkey"
+            columns: ["sublot_id"]
+            isOneToOne: false
+            referencedRelation: "sublots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       item_huids: {
         Row: {
           created_at: string
@@ -838,6 +901,48 @@ export type Database = {
           },
         ]
       }
+      removal_voids: {
+        Row: {
+          id: string
+          reason: string
+          removal_id: string
+          sublot_id: string
+          voided_at: string
+          voided_by: string
+        }
+        Insert: {
+          id?: string
+          reason: string
+          removal_id: string
+          sublot_id: string
+          voided_at?: string
+          voided_by?: string
+        }
+        Update: {
+          id?: string
+          reason?: string
+          removal_id?: string
+          sublot_id?: string
+          voided_at?: string
+          voided_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "removal_voids_removal_id_fkey"
+            columns: ["removal_id"]
+            isOneToOne: true
+            referencedRelation: "item_removals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "removal_voids_sublot_id_fkey"
+            columns: ["sublot_id"]
+            isOneToOne: false
+            referencedRelation: "sublots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           key: string
@@ -1384,6 +1489,10 @@ export type Database = {
       clear_tray_session: { Args: { p_session: string }; Returns: undefined }
       close_sublot: { Args: { p_sublot: string }; Returns: boolean }
       close_tray_session: { Args: { p_session: string }; Returns: undefined }
+      correct_item: {
+        Args: { p_item: string; p_reason: string }
+        Returns: undefined
+      }
       delete_lot: {
         Args: { p_confirm: string; p_lot: string }
         Returns: string[]
@@ -1495,6 +1604,10 @@ export type Database = {
       unseal_sublot: {
         Args: { p_reason: string; p_sublot: string }
         Returns: string[]
+      }
+      void_removal: {
+        Args: { p_reason: string; p_removal: string }
+        Returns: undefined
       }
     }
     Enums: {

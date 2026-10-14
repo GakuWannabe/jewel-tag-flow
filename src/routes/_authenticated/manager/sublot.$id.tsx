@@ -44,10 +44,15 @@ function SublotPage() {
         db.from("item_removals").select("*").eq("sublot_id", id).order("removed_at", { ascending: false }),
       ]);
       const removals = rm.data ?? [];
-      const uids = [...new Set(removals.map((x: any) => x.removed_by))];
+      const { data: voids } = await db.from("removal_voids").select("*").eq("sublot_id", id);
+      const uids = [...new Set([...removals.map((x: any) => x.removed_by), ...(voids ?? []).map((v: any) => v.voided_by)])];
       const { data: profs } = uids.length ? await db.from("profiles").select("id,name").in("id", uids) : { data: [] };
+      const nm = (u: string) => (profs ?? []).find((p: any) => p.id === u)?.name ?? "—";
       return { s, target: t.data, recon: r.data?.[0], pool: pool.data ?? [], items: items.data ?? [], slots: slots.data ?? [], photographers: photog.data ?? [], botResults: br.data ?? [],
-        removals: removals.map((x: any) => ({ ...x, by: (profs ?? []).find((p: any) => p.id === x.removed_by)?.name ?? "—" })) };
+        removals: removals.map((x: any) => {
+          const v = (voids ?? []).find((v: any) => v.removal_id === x.id);
+          return { ...x, by: nm(x.removed_by), void: v ? { ...v, by: nm(v.voided_by) } : null };
+        }) };
     },
   });
   if (!data?.s) return <AppShell title="Sublot" back="/manager/lots"><p>Loading…</p></AppShell>;
@@ -125,15 +130,30 @@ function SublotPage() {
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-muted-foreground">Declared totals never change. Weight tolerance is based on declared pieces ({target.declared_pieces}).</p>
+              <p className="text-xs text-muted-foreground">Removed = pieces that left the lot. Compartments marked in error do not appear here and do not change the target. Declared totals never change; weight tolerance is based on declared pieces ({target.declared_pieces}).</p>
             </Box>
           )}
           {removals.length > 0 && (
             <Box title="Removal log">
               <div className="overflow-x-auto"><table className="num w-full text-sm">
-                <thead className="font-sans text-left text-xs text-muted-foreground"><tr><th className="p-1">When</th><th>By</th><th>Pos</th><th>Net</th><th>Pcs</th><th>HUIDs</th><th>Reason</th></tr></thead>
+                <thead className="font-sans text-left text-xs text-muted-foreground"><tr><th className="p-1">When</th><th>By</th><th>Pos</th><th>Net</th><th>Pcs</th><th>HUIDs</th><th>Reason</th><th /></tr></thead>
                 <tbody>{removals.map((x: any) => (
-                  <tr key={x.id} className="border-t"><td className="p-1">{new Date(x.removed_at).toLocaleString()}</td><td className="font-sans">{x.by}</td><td>{x.tray_code}-{String(x.compartment_no).padStart(2, "0")}</td><td>{fmt3(x.net_weight)}</td><td>{x.pcs}</td><td>{x.huids ?? "—"}</td><td className="font-sans">{x.reason}</td></tr>
+                  <tr key={x.id} className="border-t">
+                    <td className={`p-1 ${x.void ? "line-through text-muted-foreground" : ""}`}>{new Date(x.removed_at).toLocaleString()}</td>
+                    <td className={`font-sans ${x.void ? "line-through text-muted-foreground" : ""}`}>{x.by}</td>
+                    <td className={x.void ? "line-through text-muted-foreground" : ""}>{x.tray_code}-{String(x.compartment_no).padStart(2, "0")}</td>
+                    <td className={x.void ? "line-through text-muted-foreground" : ""}>{fmt3(x.net_weight)}</td>
+                    <td className={x.void ? "line-through text-muted-foreground" : ""}>{x.pcs}</td>
+                    <td className={x.void ? "line-through text-muted-foreground" : ""}>{x.huids ?? "—"}</td>
+                    <td className={`font-sans ${x.void ? "line-through text-muted-foreground" : ""}`}>{x.reason}</td>
+                    <td className="font-sans text-xs">
+                      {x.void ? <span className="font-semibold">Voided by {x.void.by}, {new Date(x.void.voided_at).toLocaleString()}: {x.void.reason}</span>
+                        : isMgr && !sealed && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => {
+                          const r = prompt(`Void this removal?\nThe target goes back up by 1 tag, ${x.pcs} pcs and ${fmt3(x.net_weight)} g. Use this when the compartment was actually marked in error. The log row stays, struck through.\n\nReason (required):`);
+                          if (r?.trim()) void run("void", () => rpc("void_removal", { p_removal: x.id, p_reason: r }));
+                        }}>Void this removal</Button>}
+                    </td>
+                  </tr>
                 ))}</tbody>
               </table></div>
             </Box>

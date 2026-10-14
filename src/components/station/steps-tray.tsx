@@ -63,7 +63,7 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
   const endPress = () => { if (press.current.t) clearTimeout(press.current.t); press.current.t = null; };
   const doRemove = async () => {
     if (!rm || !rmReason.trim()) return;
-    try { await rpc("remove_item", { p_item: rm.id, p_reason: rmReason.trim() }); toast.success(`Compartment ${pad(rm.compartment_no)} removed`); setRm(null); await refresh(); }
+    try { await rpc("correct_item", { p_item: rm.id, p_reason: rmReason.trim() }); toast.success(`Compartment ${pad(rm.compartment_no)} removed`); setRm(null); await refresh(); }
     catch (err) { toast.error(errMsg(err)); }
   };
 
@@ -117,7 +117,7 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this compartment?</AlertDialogTitle>
             <AlertDialogDescription className="text-base">
-              Compartment <b>{rm && pad(rm.compartment_no)}</b> will be removed from the sublot and its HUIDs go back to the list. This is logged with your name.
+              Remove this compartment? Use this only when no product was ever placed here. The sublot totals will not change. Compartment <b>{rm && pad(rm.compartment_no)}</b>'s HUIDs go back to the list; this is logged with your name.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input className="h-12" placeholder="Reason (required)" value={rmReason} onChange={(e) => setRmReason(e.target.value)} />
