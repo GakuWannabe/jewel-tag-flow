@@ -27,6 +27,7 @@ function SublotPage() {
   const isMgr = has("manager");
   const { data: settings } = useSettings();
   const [busy, setBusy] = useState("");
+  const [tab, setTab] = useState("overview");
   const unseal = useServerFn(unsealSublot);
   const links = useServerFn(photoLinks);
   const { data, refetch } = useQuery({
@@ -36,7 +37,7 @@ function SublotPage() {
       const [t, r, pool, items, slots, photog, br, rm] = await Promise.all([
         db.from("sublot_targets").select("*").eq("sublot_id", id).maybeSingle(),
         db.from("reconciliations").select("*").eq("sublot_id", id).order("created_at", { ascending: false }).limit(1),
-        db.from("huid_pool").select("id,assigned_item_id").eq("sublot_id", id).is("deleted_at", null),
+        db.from("huid_pool").select("id,huid,assigned_item_id").eq("sublot_id", id).is("deleted_at", null),
         db.from("items").select("id,pcs,net_weight,hold_flag,photo_url,gross_weight").eq("sublot_id", id).is("deleted_at", null),
         db.from("tag_slots").select("id,assigned_item_id").eq("sublot_id", id).is("superseded_at", null),
         db.from("user_roles").select("user_id, profiles:user_id(name)").eq("role", "photo"),
@@ -98,7 +99,7 @@ function SublotPage() {
         <p className="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">Draft — staff can't see this sublot yet. Import the tag slot list and HUID list, then tap <b>Issue to staff</b>. Staff then pick lot {lot.lot_no} on the Station screen.</p>
       )}
 
-      <Tabs defaultValue="overview">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-3 h-auto flex-wrap">
           {["overview", "tag slots", "huids", "items", "photos", "seal & export"].map((t) => <TabsTrigger key={t} value={t} className="h-10 px-4 capitalize">{t}</TabsTrigger>)}
         </TabsList>
@@ -167,6 +168,12 @@ function SublotPage() {
                 <span>Tolerance ±{fmt3(recon.tolerance)}</span>
                 <span>HUIDs left {recon.huids_remaining}</span>
               </div>
+              {poolFree > 0 && (
+                <p className="rounded bg-warning/30 p-2 text-sm font-semibold">
+                  <span className="num">{poolFree} HUID{poolFree === 1 ? "" : "s"} not assigned: {pool.filter((p: any) => !p.assigned_item_id).map((p: any) => p.huid).join(", ")}</span>{" "}
+                  <button type="button" className="underline" onClick={() => setTab("huids")}>Open HUIDs tab →</button>
+                </p>
+              )}
             </Box>
           )}
         </TabsContent>
