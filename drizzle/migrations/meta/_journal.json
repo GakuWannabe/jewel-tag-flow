@@ -71,6 +71,13 @@
       "when": 1792012902647,
       "tag": "0009_delete_pool_huid",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792016197637,
+      "tag": "0010_auto_seal_on_reconciliation",
+      "breakpoints": true
     }
   ]
 }
