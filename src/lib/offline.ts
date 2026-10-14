@@ -46,12 +46,20 @@ export async function startSync() {
   void flush();
 }
 
-export async function enqueue(op: Omit<Op, "id" | "createdAt">) {
-  const full: Op = { ...op, id: crypto.randomUUID(), createdAt: Date.now() };
-  const queue = [...state.queue, full];
-  await set(QKEY, queue);
-  setState({ queue });
-  void flush();
+// Serialised: each enqueue waits for the previous write before reading state.queue,
+// so ops fired in the same tick are never lost.
+let chain: Promise<void> = Promise.resolve();
+export function enqueue(op: Omit<Op, "id" | "createdAt"> | Omit<Op, "id" | "createdAt">[]): Promise<void> {
+  const ops = Array.isArray(op) ? op : [op];
+  const next = chain.then(async () => {
+    const now = Date.now();
+    const full: Op[] = ops.map((o) => ({ ...o, id: crypto.randomUUID(), createdAt: now }));
+    const queue = [...state.queue, ...full];
+    await set(QKEY, queue);
+    setState({ queue });
+  });
+  chain = next.catch(() => {});
+  return next.then(() => { void flush(); });
 }
 
 export async function flush() {
