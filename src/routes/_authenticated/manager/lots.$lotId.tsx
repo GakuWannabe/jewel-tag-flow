@@ -250,9 +250,8 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
           <Field label="Vendor">
             {m.vendors.length === 0 ? <p className="text-sm text-destructive">Add vendors in Master data first.</p> :
               m.vendors.length > 8
-                ? <select className="h-14 w-full rounded-md border border-input bg-background px-3 text-lg" value={f.vendor_id ?? ""} onChange={(e) => setF({ ...f, vendor_id: e.target.value })}>
-                    <option value="">Choose vendor…</option>{m.vendors.map((v: any) => <option key={v.id} value={v.id}>{v.code} · {v.name}</option>)}
-                  </select>
+                ? <SearchPick value={f.vendor_id} onChange={(v) => setF({ ...f, vendor_id: v })} placeholder="Choose vendor…"
+                    options={m.vendors.map((v: any) => ({ v: v.id, label: `${v.code} · ${v.name}`, search: `${v.code} ${v.name}` }))} />
                 : <Choice value={f.vendor_id} onChange={(v) => setF({ ...f, vendor_id: v })} options={m.vendors.map((v: any) => ({ v: v.id, label: v.code, sub: v.name }))} />}
           </Field>
           <Field label="Purity" hint="Melting is set automatically">
