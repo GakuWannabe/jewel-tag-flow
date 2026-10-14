@@ -81,7 +81,7 @@ function LotDetail() {
       </div>
 
       {isMgr && open && m && lot && (
-        <SublotForm m={m} lotId={lotId} subs={subs} remaining={lt ? { pcs: lt.total_pcs - usedPcs, net: Number(lt.total_net_weight) - usedNet } : null}
+        <SublotForm m={m} lot={lot} lotId={lotId} subs={subs} remaining={lt ? { pcs: lt.total_pcs - usedPcs, net: Number(lt.total_net_weight) - usedNet } : null}
           onClose={() => setOpen(false)} onSaved={() => { setOpen(false); refetch(); }} />
       )}
 
@@ -139,15 +139,18 @@ function Meter({ label, used, total, fmt }: { label: string; used?: number; tota
   );
 }
 
-function SublotForm({ m, lotId, subs, remaining, onClose, onSaved }: {
-  m: any; lotId: string; subs: any[]; remaining: { pcs: number; net: number } | null; onClose: () => void; onSaved: () => void;
+function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
+  m: any; lot: any; lotId: string; subs: any[]; remaining: { pcs: number; net: number } | null; onClose: () => void; onSaved: () => void;
 }) {
+  // Only this lot's branch's product types; pieces pre-fill only when a product has exactly one allowed pcs.
+  const m = { ...m0, productTypes: m0.productTypes.filter((p: any) => p.branch_id === lot?.branch_id) };
+  const fixedPcs = (p: any): number | null => (p?.allowed_pcs?.length === 1 ? p.allowed_pcs[0] : null);
   const last = subs[subs.length - 1];
   const [f, setF] = useState<any>({});
   const [piecesTouched, setPiecesTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const pt = m.productTypes.find((p: any) => p.id === f.product_type_id);
-  const suggested = pt && Number(f.tags) > 0 ? String(Number(f.tags) * pt.default_pcs) : "";
+  const suggested = fixedPcs(pt) && Number(f.tags) > 0 ? String(Number(f.tags) * fixedPcs(pt)!) : "";
   const showSuggest = piecesTouched && suggested && suggested !== f.pieces;
   const purity = m.purities.find((p: any) => p.id === f.purity_id);
 
@@ -155,7 +158,8 @@ function SublotForm({ m, lotId, subs, remaining, onClose, onSaved }: {
   const set = (patch: any) => {
     const next = { ...f, ...patch };
     const p = m.productTypes.find((x: any) => x.id === next.product_type_id);
-    const sug = p && Number(next.tags) > 0 ? String(Number(next.tags) * p.default_pcs) : "";
+    const fp = fixedPcs(p);
+    const sug = fp && Number(next.tags) > 0 ? String(Number(next.tags) * fp) : "";
     setF(piecesTouched ? next : { ...next, pieces: sug });
   };
   const copyLast = () => {
@@ -174,7 +178,7 @@ function SublotForm({ m, lotId, subs, remaining, onClose, onSaved }: {
 
   const save = async () => {
     if (!ready) return toast.error("Finish the sections that aren't ticked yet");
-    if (showSuggest && !confirm(`Pieces is ${f.pieces}, but ${f.tags} tags × ${pt.default_pcs} pcs = ${suggested}. Keep ${f.pieces}?`)) return;
+    if (showSuggest && !confirm(`Pieces is ${f.pieces}, but ${f.tags} tags × ${fixedPcs(pt)} pcs = ${suggested}. Keep ${f.pieces}?`)) return;
     if (remaining && (Number(f.pieces) > remaining.pcs || Number(f.net) > remaining.net + 0.0005) &&
       !confirm("This sublot goes over what's left of the lot's pieces or net weight. Save anyway?")) return;
     setBusy(true);
@@ -217,9 +221,9 @@ function SublotForm({ m, lotId, subs, remaining, onClose, onSaved }: {
       </div>
 
       {Section({ i: 0, title: "What product?", hint: "One product type per sublot", children: (
-        m.productTypes.length === 0 ? <p className="text-destructive">Add product types in Master data first.</p> :
+        m.productTypes.length === 0 ? <p className="text-destructive">Branch {lot?.branches?.branch_code} · {lot?.branches?.branch_name} has no product types yet. Add them in Master data first.</p> :
         <Choice value={f.product_type_id} onChange={(v) => set({ product_type_id: v })}
-          options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, sub: `${p.default_pcs} piece${p.default_pcs > 1 ? "s" : ""} per tag` }))} />
+          options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, sub: `${(p.allowed_pcs ?? [p.default_pcs]).join(" / ")} piece(s) per tag` }))} />
       ) })}
 
       {Section({ i: 1, title: "How many, how heavy?", children: (
@@ -228,9 +232,9 @@ function SublotForm({ m, lotId, subs, remaining, onClose, onSaved }: {
             <Field label="Tags (compartments)" hint="How many price tags / tray spots">
               <Input className="num h-14 text-xl" inputMode="numeric" value={f.tags ?? ""} onChange={(e) => set({ tags: e.target.value.replace(/\D/g, "") })} placeholder="0" />
             </Field>
-            <Field label="Pieces (HUIDs)" hint={pt ? `Filled in as tags × ${pt.default_pcs} — change it if needed` : "Pick a product first"}>
+            <Field label="Pieces (HUIDs)" hint={!pt ? "Pick a product first" : fixedPcs(pt) ? `Filled in as tags × ${fixedPcs(pt)} — change it if needed` : `Pcs per tag varies (${pt.allowed_pcs.join(", ")}) — type the total from the packet`}>
               <Input className="num h-14 text-xl" inputMode="numeric" value={f.pieces ?? ""} onChange={(e) => { setPiecesTouched(true); setF({ ...f, pieces: e.target.value.replace(/\D/g, "") }); }} placeholder="0" />
-              {showSuggest && <button type="button" className="text-left text-xs font-semibold underline" onClick={() => { setF({ ...f, pieces: suggested }); setPiecesTouched(false); }}>Use {f.tags} × {pt.default_pcs} = {suggested}?</button>}
+              {showSuggest && <button type="button" className="text-left text-xs font-semibold underline" onClick={() => { setF({ ...f, pieces: suggested }); setPiecesTouched(false); }}>Use {f.tags} × {fixedPcs(pt)} = {suggested}?</button>}
             </Field>
             <Field label="Declared net weight (g)" hint="Never shown to staff">
               <Input className="num h-14 text-xl" inputMode="decimal" value={f.net ?? ""} onChange={(e) => setF({ ...f, net: e.target.value })} placeholder="0.000" />

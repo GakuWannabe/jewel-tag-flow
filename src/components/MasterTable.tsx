@@ -7,22 +7,46 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-export interface Col { key: string; label: string; type?: "text" | "number" | "bool"; required?: boolean; default?: number; example?: string }
+export interface Lookup { table: string; match: string; fk: string; rel: string }
+export interface Col { key: string; label: string; type?: "text" | "number" | "bool" | "intlist"; required?: boolean; default?: number; example?: string; lookup?: Lookup }
 export interface Ref { table: string; col: string; label: string }
 export interface MasterConfig {
   table: string; title: string; cols: Col[]; conflictKey: string; order: string;
   transform?: (row: Record<string, unknown>) => Record<string, unknown>;
   refs?: Ref[];
   duplicate?: string[];
+  select?: string;
+  filterCol?: string;
 }
 
 const blank = (v: unknown) => v == null || String(v).trim() === "";
 
 function coerce(col: Col, v: unknown) {
   if (col.type === "number") return blank(v) ? (col.default ?? null) : Number(v);
+  if (col.type === "intlist") return blank(v) ? null : (Array.isArray(v) ? v : String(v).split(/[\s,;]+/).filter(Boolean)).map(Number);
   if (col.type === "bool") return v === true || String(v).toLowerCase() === "true" || v === "1" || String(v).toLowerCase() === "yes";
   return v == null ? null : String(v).trim();
 }
+
+function cellError(c: Col, v: unknown): string | null {
+  if (c.type === "intlist") {
+    if (blank(v)) return c.required ? "is empty" : null;
+    const xs = String(v).split(/[\s,;]+/).filter(Boolean);
+    if (!xs.length || xs.some((x) => !/^\d+$/.test(x) || Number(x) < 1)) return `"${v}" must be whole numbers ≥ 1, comma-separated`;
+    return null;
+  }
+  if (c.type === "number") {
+    if (blank(v)) return c.default == null && c.required ? "is empty" : null;
+    return Number.isNaN(Number(v)) ? `"${v}" is not a number` : null;
+  }
+  if (c.required && c.type !== "bool" && blank(v)) return "is empty";
+  return null;
+}
+
+const display = (c: Col, row: Record<string, unknown>) =>
+  c.lookup ? String((row[c.lookup.rel] as Record<string, unknown> | null)?.[c.lookup.match] ?? "")
+    : c.type === "intlist" ? (Array.isArray(row[c.key]) ? (row[c.key] as number[]).join(",") : "")
+    : String(row[c.key] ?? "");
 
 function exampleFor(c: Col) {
   if (c.example != null) return c.example;
@@ -36,18 +60,56 @@ export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: bool
   const { data = [] } = useQuery({
     queryKey: ["master", cfg.table],
     queryFn: async () => {
-      const { data, error } = await db.from(cfg.table).select("*").order(cfg.order);
+      const { data, error } = await db.from(cfg.table).select(cfg.select ?? "*").order(cfg.order);
       if (error) throw error;
       return data as Record<string, unknown>[];
     },
   });
+  const lookups = cfg.cols.filter((c) => c.lookup);
+  const { data: lk = {} } = useQuery({
+    queryKey: ["master-lookups", cfg.table],
+    enabled: lookups.length > 0,
+    queryFn: async () => {
+      const out: Record<string, Map<string, string>> = {};
+      for (const c of lookups) {
+        const { data, error } = await db.from(c.lookup!.table).select(`id,${c.lookup!.match}`);
+        if (error) throw error;
+        out[c.key] = new Map((data ?? []).map((r: any) => [String(r[c.lookup!.match]).toUpperCase(), r.id]));
+      }
+      return out;
+    },
+  });
+  const [filter, setFilter] = useState("");
+  const filterCol = cfg.filterCol ? cfg.cols.find((c) => c.key === cfg.filterCol) : undefined;
+  const filterValues = filterCol ? [...new Set(data.map((r) => display(filterCol, r)))].filter(Boolean).sort() : [];
+  const shown = filterCol && filter ? data.filter((r) => display(filterCol, r) === filter) : data;
+
+  /** Coerce + resolve lookups. Returns an error string (without row prefix) or the payload. */
+  const build = (row: Record<string, unknown>): { payload?: Record<string, unknown>; error?: string } => {
+    let payload: Record<string, unknown> = {};
+    for (const c of cfg.cols) {
+      if (row[c.key] === undefined) continue;
+      if (c.lookup) {
+        const code = String(row[c.key] ?? "").trim().toUpperCase();
+        if (!code) { if (c.required) return { error: `${c.key} is empty` }; continue; }
+        const id = lk[c.key]?.get(code);
+        if (!id) return { error: `${c.key} "${code}" is not a known ${c.lookup.table.replace(/s$/, "")}` };
+        payload[c.lookup.fk] = id;
+        continue;
+      }
+      payload[c.key] = coerce(c, row[c.key]);
+    }
+    if (cfg.transform) payload = cfg.transform(payload);
+    return { payload };
+  };
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const refresh = () => qc.invalidateQueries({ queryKey: ["master", cfg.table] });
 
   const save = async (row: Record<string, unknown>, id?: string) => {
-    let payload: Record<string, unknown> = {};
-    for (const c of cfg.cols) if (row[c.key] !== undefined) payload[c.key] = coerce(c, row[c.key]);
-    if (cfg.transform) payload = cfg.transform(payload);
+    for (const c of cfg.cols) { const e = row[c.key] !== undefined ? cellError(c, row[c.key]) : null; if (e) { toast.error(`${c.label} ${e}`); return false; } }
+    const b = build(row);
+    if (b.error) { toast.error(b.error); return false; }
+    const payload = b.payload!;
     const q = id ? db.from(cfg.table).update(payload).eq("id", id) : db.from(cfg.table).insert(payload);
     const { error } = await q;
     if (error) { toast.error(error.message); return false; }
@@ -70,18 +132,18 @@ export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: bool
           const errors: string[] = [];
           const rows = res.data.map((r, i) => {
             const rowNo = i + 2; // row 1 is the header
-            let o: Record<string, unknown> = {};
+            const src: Record<string, unknown> = {};
+            let bad = false;
             for (const c of cfg.cols) {
               const v = r[c.key];
-              if (c.type === "number") {
-                if (blank(v)) {
-                  if (c.default == null && c.required) errors.push(`Row ${rowNo}: ${c.key} is empty`);
-                } else if (Number.isNaN(Number(v))) errors.push(`Row ${rowNo}: ${c.key} "${v}" is not a number`);
-              } else if (c.required && c.type !== "bool" && blank(v)) errors.push(`Row ${rowNo}: ${c.key} is empty`);
-              if (v !== undefined || (c.type === "number" && c.default != null)) o[c.key] = coerce(c, v);
+              const e = cellError(c, v);
+              if (e) { errors.push(`Row ${rowNo}: ${c.key} ${e}`); bad = true; }
+              if (v !== undefined || (c.type === "number" && c.default != null) || c.lookup) src[c.key] = v ?? "";
             }
-            if (cfg.transform) o = cfg.transform(o);
-            return o;
+            if (bad) return {};
+            const b = build(src);
+            if (b.error) { errors.push(`Row ${rowNo}: ${b.error}`); return {}; }
+            return b.payload!;
           });
           if (!rows.length) errors.push("File has no data rows");
           if (errors.length) {
@@ -132,6 +194,14 @@ export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: bool
 
   return (
     <div className="space-y-3">
+      {filterCol && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold">{filterCol.label}:</span>
+          {["", ...filterValues].map((v) => (
+            <Button key={v || "all"} size="sm" variant={filter === v ? "default" : "outline"} onClick={() => setFilter(v)}>{v || "All"}</Button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">CSV headers: <code className="num">{cfg.cols.map((c) => c.key).join(",")}</code></p>
         {canEdit && (
@@ -150,7 +220,7 @@ export function MasterTable({ cfg, canEdit }: { cfg: MasterConfig; canEdit: bool
             <tr>{cfg.cols.map((c) => <th key={c.key} className="px-2 py-2 font-semibold">{c.label}</th>)}{canEdit && <th />}</tr>
           </thead>
           <tbody>
-            {data.map((row) => <Row key={String(row.id)} row={row} cols={cfg.cols} canEdit={canEdit} onSave={(r) => save(r, String(row.id))} onDelete={() => remove(row)} onDuplicate={duplicate ? () => duplicate(row) : undefined} />)}
+            {shown.map((row) => <Row key={String(row.id)} row={row} cols={cfg.cols} canEdit={canEdit} onSave={(r) => save(r, String(row.id))} onDelete={() => remove(row)} onDuplicate={duplicate ? () => duplicate(row) : undefined} />)}
             {canEdit && (
               <tr className="border-t-2 bg-secondary/50">
                 {cfg.cols.map((c) => (
@@ -184,7 +254,7 @@ function Row({ row, cols, canEdit, onSave, onDelete, onDuplicate }: {
           {edit ? (
             c.type === "bool" ? <Switch checked={!!edit[c.key]} onCheckedChange={(v) => setEdit({ ...edit, [c.key]: v })} />
               : <Input className="h-10" value={String(edit[c.key] ?? "")} onChange={(e) => setEdit({ ...edit, [c.key]: e.target.value })} />
-          ) : c.type === "bool" ? (row[c.key] ? "Yes" : "No") : <span className={c.type === "number" ? "num" : ""}>{String(row[c.key] ?? "")}</span>}
+          ) : c.type === "bool" ? (row[c.key] ? "Yes" : "No") : <span className={c.type === "number" || c.type === "intlist" ? "num" : ""}>{display(c, row)}</span>}
         </td>
       ))}
       {canEdit && (
@@ -196,7 +266,7 @@ function Row({ row, cols, canEdit, onSave, onDelete, onDuplicate }: {
             </>
           ) : (
             <div className="flex gap-1">
-              <Button size="sm" variant="outline" onClick={() => setEdit({ ...row })}>Edit</Button>
+              <Button size="sm" variant="outline" onClick={() => { const e: Record<string, unknown> = { ...row }; for (const c of cols) if (c.lookup || c.type === "intlist") e[c.key] = display(c, row); setEdit(e); }}>Edit</Button>
               {onDuplicate && <Button size="sm" variant="outline" onClick={onDuplicate}>Duplicate</Button>}
               <Button size="sm" variant="destructive" onClick={onDelete}>Delete</Button>
             </div>

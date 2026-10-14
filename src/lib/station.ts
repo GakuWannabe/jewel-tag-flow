@@ -7,7 +7,7 @@ import type { Item, PoolRow } from "./types";
 export interface Snap {
   session: { id: string; status: string; station: string; sublot_id: string };
   tray: { tray_code: string; rows: number; columns: number; compartment_count: number };
-  sublot: { id: string; status: string; sublot_no: number; lot_no: string; branch_code: string; base_code: string; product_name: string; default_pcs: number };
+  sublot: { id: string; status: string; sublot_no: number; lot_no: string; branch_code: string; base_code: string; product_name: string; default_pcs: number; allowed_pcs: number[] };
   items: Item[];
   pool: PoolRow[];
   itemHuids: Record<string, string[]>;
@@ -19,7 +19,7 @@ export interface Snap {
 async function fetchSnap(sessionId: string): Promise<Snap> {
   const { data: s, error } = await db
     .from("tray_sessions")
-    .select("id,status,station,sublot_id, trays(tray_code,rows,columns,compartment_count), sublots(id,status,sublot_no, lots(lot_no, branches(branch_code)), product_types(base_code,name,default_pcs))")
+    .select("id,status,station,sublot_id, trays(tray_code,rows,columns,compartment_count), sublots(id,status,sublot_no, lots(lot_no, branches(branch_code)), product_types(base_code,name,default_pcs,allowed_pcs))")
     .eq("id", sessionId)
     .single();
   if (error) throw new Error(error.message);
@@ -39,6 +39,7 @@ async function fetchSnap(sessionId: string): Promise<Snap> {
       id: s.sublots.id, status: s.sublots.status, sublot_no: s.sublots.sublot_no, lot_no: s.sublots.lots.lot_no,
       branch_code: s.sublots.lots.branches?.branch_code ?? "",
       base_code: s.sublots.product_types.base_code, product_name: s.sublots.product_types.name, default_pcs: s.sublots.product_types.default_pcs,
+      allowed_pcs: s.sublots.product_types.allowed_pcs ?? [s.sublots.product_types.default_pcs],
     },
     items: items.data ?? [],
     pool: pool.data ?? [],
