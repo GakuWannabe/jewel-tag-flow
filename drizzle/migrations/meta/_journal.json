@@ -50,6 +50,13 @@
       "when": 1792007663558,
       "tag": "0006_product_types_branch_allowed_pcs_master_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792011306740,
+      "tag": "0007_remove_item_staff",
+      "breakpoints": true
     }
   ]
 }
