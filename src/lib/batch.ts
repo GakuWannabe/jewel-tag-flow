@@ -5,6 +5,7 @@ export interface BotRow {
   // ERP tab order — the bot replays these in exactly this order
   gross_weight: number; less_weight: number; melting: number; wastage_pct: number; narration: string;
   pcs: number; making_value: number; making_type: string; purity_label: string; vendor_code: string; huids: string[];
+  product_name: string; branch_name: string;
   // verification only
   sequence: number; compcode: string; type: string; ic: string; expected_ser_no: number;
   tray_code: string; compartment_no: number; photo_filename: string | null; has_photo: boolean;
@@ -42,6 +43,8 @@ export async function loadBatch(client: any, sublotId: string) {
       making_type: pick("making_type"),
       purity_label: purity?.purity_label ?? "",
       vendor_code: vendor?.code ?? "",
+      product_name: sublot.product_types?.name ?? "",
+      branch_name: lot.branches?.branch_name ?? "",
       huids: (i.item_huids ?? [])
         .filter((h: any) => !h.removed_at)
         .sort((a: any, b: any) => a.position - b.position)
