@@ -43,6 +43,8 @@ export async function loadBatch(client: any, sublotId: string) {
       making_type: pick("making_type"),
       purity_label: purity?.purity_label ?? "",
       vendor_code: vendor?.code ?? "",
+      product_name: sublot.product_types?.name ?? "",
+      branch_name: lot.branches?.branch_name ?? "",
       huids: (i.item_huids ?? [])
         .filter((h: any) => !h.removed_at)
         .sort((a: any, b: any) => a.position - b.position)
