@@ -95,6 +95,9 @@ function SublotPage() {
           {isMgr && s.status === "halted" && s.halt_reason === "bot_mismatch" && <Button variant="outline" onClick={() => run("reopen", () => rpc("manager_reopen_sublot", { p_sublot: id, p_status: "sealed" }))}>Clear halt (back to sealed)</Button>}
         </div>
       </div>
+      {s.tags_continued > 0 && (
+        <p className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm font-semibold text-destructive">{s.tags_continued} tag number{s.tags_continued === 1 ? " was" : "s were"} continued automatically beyond the imported list (marked "?" in Tag slots). The bot checks each one against the ERP.</p>
+      )}
       {isMgr && s.status === "draft" && (
         <p className="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">Draft — staff can't see this sublot yet. Import the tag slot list and HUID list, then tap <b>Issue to staff</b>. Staff then pick lot {lot.lot_no} on the Station screen.</p>
       )}
