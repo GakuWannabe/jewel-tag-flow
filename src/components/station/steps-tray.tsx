@@ -71,7 +71,15 @@ export function LoadStep({ snap, run, refresh, locked, go }: StepProps) {
     if (press.current.fired) { press.current.fired = false; return; }
     if (!canLoad) return;
     const item = byComp.get(n);
-    if (item?.gross_weight != null) return toast.error("Already weighed — press and hold to remove it, or use Edit to move it");
+    if (item?.ser_no != null) return toast.error("This tag already has a tag number — a manager must unseal first");
+    if (item?.gross_weight != null) {
+      if (!confirm(`Clear ${snap.tray.tray_code}-${pad(n)} (gross ${fmt3(Number(item.gross_weight))} g)? Its HUIDs go back to the list.`)) return;
+      void (async () => {
+        try { await rpc("correct_item", { p_item: item.id, p_reason: "unloaded at tray station" }); toast.success(`Compartment ${pad(n)} cleared`); await refresh(); }
+        catch (err) { toast.error(errMsg(err)); }
+      })();
+      return;
+    }
     void run("set_compartment", { p_session: snap.session.id, p_compartment: n, p_occupied: !item, p_item_id: item?.id ?? crypto.randomUUID() }, `Compartment ${n}`);
   };
   const doMove = () => {
@@ -217,6 +225,11 @@ function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item
   const [gross, setGross] = useState(item.gross_weight != null ? Number(item.gross_weight).toFixed(3) : "");
   const [less, setLess] = useState(Number(item.less_weight ?? 0).toFixed(3));
   const [field, setField] = useState<"gross" | "less">("gross");
+  const [showPad, setShowPad] = useState(false);
+  const grossRef = useRef<HTMLInputElement>(null);
+  const lessRef = useRef<HTMLInputElement>(null);
+  const touched = useRef({ gross: false, less: false });
+  useEffect(() => { if (!locked) grossRef.current?.focus(); }, [item.id, locked]);
   const allowed = snap.sublot.allowed_pcs?.length ? snap.sublot.allowed_pcs : [snap.sublot.default_pcs];
   const pcsOptions = [...new Set([...allowed, ...(ownSaved && !allowed.includes(item.pcs) ? [item.pcs] : [])])].sort((a, b) => a - b);
   // One allowed value: fixed. Several: staff must pick — never guessed — unless this item was already saved.
@@ -243,10 +256,25 @@ function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item
     onDone();
   };
   const wField = (k: "gross" | "less", label: string, v: string) => (
-    <button type="button" onClick={() => setField(k)} className={cn("flex-1 rounded-lg border-4 p-2 text-left", field === k ? "border-ring bg-accent/30" : "border-border bg-card")}>
+    <label className={cn("flex-1 rounded-lg border-4 p-2 text-left", field === k ? "border-ring bg-accent/30" : "border-border bg-card")}>
       <div className="text-xs font-bold uppercase text-muted-foreground">{label}</div>
-      <div className="num text-3xl font-bold">{v || "0.000"}</div>
-    </button>
+      <input
+        ref={k === "gross" ? grossRef : lessRef}
+        type="text" inputMode="decimal" autoComplete="off" disabled={locked}
+        value={v} placeholder="0.000"
+        onFocus={(e) => { setField(k); e.currentTarget.select(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); if (k === "gross") lessRef.current?.focus(); else void save(); return; }
+          if (/^[0-9.]$/.test(e.key) && !touched.current[k]) { e.preventDefault(); touched.current[k] = true; (k === "gross" ? setGross : setLess)(e.key === "." ? "0." : e.key); }
+        }}
+        onChange={(e) => {
+          const x = e.target.value.replace(",", ".");
+          if (x !== "" && !/^\d{0,8}(\.\d{0,3})?$/.test(x)) return;
+          touched.current[k] = true; (k === "gross" ? setGross : setLess)(x);
+        }}
+        className="num w-full bg-transparent text-3xl font-bold outline-none"
+      />
+    </label>
   );
   return (
     <div className="space-y-3 rounded-xl border-2 bg-card p-3">
@@ -259,7 +287,12 @@ function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item
         {wField("less", "Less g", less)}
         <div className="flex-1 rounded-lg bg-muted p-2"><div className="text-xs font-bold uppercase text-muted-foreground">Net g</div><div className="num text-3xl font-bold">{fmt3(net)}</div></div>
       </div>
-      {!locked && <Keypad value={field === "gross" ? gross : less} onChange={field === "gross" ? setGross : setLess} />}
+      {!locked && (
+        <div>
+          <button type="button" className="text-sm font-semibold underline" onClick={() => setShowPad(!showPad)}>{showPad ? "Hide on-screen keypad" : "Show on-screen keypad"}</button>
+          {showPad && <div className="mt-2"><Keypad value={field === "gross" ? gross : less} onChange={(v) => { touched.current[field] = true; (field === "gross" ? setGross : setLess)(v); }} /></div>}
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <span className="font-bold">Pcs</span>
         {allowed.length === 1 ? (
