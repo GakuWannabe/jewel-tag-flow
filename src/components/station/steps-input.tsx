@@ -265,7 +265,23 @@ export function HuidListStep({ snap, refresh, locked, go }: StepProps) {
         <details className="rounded-xl border bg-card p-3">
           <summary className="cursor-pointer font-semibold">See saved HUIDs ({total})</summary>
           <div className="num mt-2 grid grid-cols-3 gap-1 text-sm sm:grid-cols-6">
-            {snap.pool.map((p) => <span key={p.id} className={cn("rounded px-2 py-1", p.assigned_item_id ? "bg-success text-success-foreground" : "bg-muted")}>{p.huid}</span>)}
+            {snap.pool.map((p) => {
+              const it = p.assigned_item_id ? snap.items.find((i) => i.id === p.assigned_item_id) : null;
+              return (
+                <span key={p.id} className={cn("flex items-center justify-between gap-1 rounded px-2 py-1", p.assigned_item_id ? "bg-success text-success-foreground" : "bg-muted")}>
+                  {p.huid}
+                  {p.assigned_item_id ? <span className="text-xs">{it ? `${snap.tray.tray_code}-${String(it.compartment_no).padStart(2, "0")}` : "other tray"}</span>
+                    : !locked && (
+                      <button type="button" aria-label={`Delete ${p.huid}`} className="rounded p-1 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={async () => {
+                          if (!confirm(`Delete HUID ${p.huid} from the list?`)) return;
+                          try { await rpc("delete_pool_huid", { p_huid_pool_id: p.id, p_reason: "removed at tray station (entered wrongly)" }); toast.success(`${p.huid} deleted`); await refresh(); }
+                          catch (e) { toast.error(errMsg(e)); }
+                        }}><X className="h-3 w-3" /></button>
+                    )}
+                </span>
+              );
+            })}
           </div>
         </details>
       )}

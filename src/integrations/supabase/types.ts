@@ -1156,6 +1156,7 @@ export type Database = {
           slots_imported_at: string | null
           status: Database["public"]["Enums"]["sublot_status"]
           sublot_no: number
+          tags_continued: number
           updated_at: string | null
           updated_by: string | null
           vendor_id: string | null
@@ -1182,6 +1183,7 @@ export type Database = {
           slots_imported_at?: string | null
           status?: Database["public"]["Enums"]["sublot_status"]
           sublot_no: number
+          tags_continued?: number
           updated_at?: string | null
           updated_by?: string | null
           vendor_id?: string | null
@@ -1208,6 +1210,7 @@ export type Database = {
           slots_imported_at?: string | null
           status?: Database["public"]["Enums"]["sublot_status"]
           sublot_no?: number
+          tags_continued?: number
           updated_at?: string | null
           updated_by?: string | null
           vendor_id?: string | null
