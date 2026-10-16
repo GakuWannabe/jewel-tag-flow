@@ -309,7 +309,7 @@ function WeightPanel({ item, snap, locked, run, carry, onSaved, onDone }: { item
       </div>
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Input className={cn("h-12", carried && "text-muted-foreground italic")} placeholder="Narration (optional)" value={narr} onChange={(e) => { setNarr(e.target.value); setCarried(false); }} />
+          <Input className={cn("h-12 uppercase", carried && "text-muted-foreground italic")} placeholder="Narration (optional)" value={narr} onChange={(e) => { setNarr(e.target.value.toUpperCase()); setCarried(false); }} />
           {carried && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-muted px-1.5 text-xs font-semibold text-muted-foreground">carried</span>}
         </div>
         {narr !== "" && !locked && <Button type="button" variant="ghost" className="h-12" onClick={() => { setNarr(""); setCarried(false); }}>Clear</Button>}
@@ -517,14 +517,16 @@ export function FinishStep({ snap, run, locked, go }: StepProps) {
       <Row label="Weighed" v={`${weighed} / ${items.length}`} ok={items.length > 0 && weighed === items.length} to="weigh" />
       <Row label="HUIDs matched" v={`${matched} / ${items.length}`} ok={items.length > 0 && matched === items.length} to="match" />
       {holds > 0 && <p className="rounded-lg bg-destructive p-3 font-bold text-destructive-foreground">{holds} product(s) on hold — manager will review.</p>}
-      {!locked && !closed && (
-        <Button className="h-16 w-full text-xl" disabled={!ready} onClick={async () => { await run("close_tray_session", { p_session: snap.session.id }, `Close tray ${snap.tray.tray_code}`); toast.success(`Tray ${snap.tray.tray_code} complete`); }}>
-          {ready ? `Finish tray ${snap.tray.tray_code}` : "Finish tray (complete the steps above)"}
+      {!locked && (
+        <Button className="h-16 w-full text-xl" disabled={!ready && !closed} onClick={async () => {
+          if (!closed) await run("close_tray_session", { p_session: snap.session.id }, `Close tray ${snap.tray.tray_code}`);
+          if (confirm(`Tray ${snap.tray.tray_code} saved.\n\nAre there still products of this sublot not placed in a tray?\nOK = load next tray · Cancel = finish sublot`)) void nav({ to: "/station" });
+          else await closeSublot();
+        }}>
+          {ready || closed ? "Save and load next tray / finish sublot" : "Complete the steps above first"}
         </Button>
       )}
       {closed && <p className="rounded-lg bg-success p-4 text-center text-lg font-bold text-success-foreground">Tray {snap.tray.tray_code} is finished.</p>}
-      <NextTrayBanner snap={snap} locked={locked} />
-      {closed && !locked && <Button variant="secondary" className="h-16 w-full text-xl" onClick={() => void closeSublot()}>All trays done — Close sublot</Button>}
       <Button variant="outline" className="h-14 w-full" onClick={() => nav({ to: "/station" })}>Back to station</Button>
     </div>
   );
