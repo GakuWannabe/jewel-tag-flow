@@ -58,7 +58,7 @@ export type Database = {
           mismatch: boolean
           sequence: number
           status: string
-          sublot_id: string
+          sublot_id: string | null
         }
         Insert: {
           actual_ser_no?: number | null
@@ -70,7 +70,7 @@ export type Database = {
           mismatch?: boolean
           sequence: number
           status: string
-          sublot_id: string
+          sublot_id?: string | null
         }
         Update: {
           actual_ser_no?: number | null
@@ -82,7 +82,7 @@ export type Database = {
           mismatch?: boolean
           sequence?: number
           status?: string
-          sublot_id?: string
+          sublot_id?: string | null
         }
         Relationships: [
           {
@@ -134,7 +134,7 @@ export type Database = {
           created_by: string | null
           flag: Database["public"]["Enums"]["hold_flag"] | null
           id: string
-          item_id: string
+          item_id: string | null
           note: string | null
         }
         Insert: {
@@ -143,7 +143,7 @@ export type Database = {
           created_by?: string | null
           flag?: Database["public"]["Enums"]["hold_flag"] | null
           id?: string
-          item_id: string
+          item_id?: string | null
           note?: string | null
         }
         Update: {
@@ -152,7 +152,7 @@ export type Database = {
           created_by?: string | null
           flag?: Database["public"]["Enums"]["hold_flag"] | null
           id?: string
-          item_id?: string
+          item_id?: string | null
           note?: string | null
         }
         Relationships: [
@@ -170,28 +170,28 @@ export type Database = {
           deleted_at: string
           deleted_by: string
           huid: string
-          huid_pool_id: string
+          huid_pool_id: string | null
           id: string
           reason: string
-          sublot_id: string
+          sublot_id: string | null
         }
         Insert: {
           deleted_at?: string
           deleted_by: string
           huid: string
-          huid_pool_id: string
+          huid_pool_id?: string | null
           id?: string
           reason: string
-          sublot_id: string
+          sublot_id?: string | null
         }
         Update: {
           deleted_at?: string
           deleted_by?: string
           huid?: string
-          huid_pool_id?: string
+          huid_pool_id?: string | null
           id?: string
           reason?: string
-          sublot_id?: string
+          sublot_id?: string | null
         }
         Relationships: [
           {
@@ -281,12 +281,12 @@ export type Database = {
           gross_weight: number | null
           huids: string | null
           id: string
-          item_id: string
+          item_id: string | null
           less_weight: number | null
           net_weight: number | null
           pcs: number
           reason: string
-          sublot_id: string
+          sublot_id: string | null
           tray_code: string | null
         }
         Insert: {
@@ -296,12 +296,12 @@ export type Database = {
           gross_weight?: number | null
           huids?: string | null
           id?: string
-          item_id: string
+          item_id?: string | null
           less_weight?: number | null
           net_weight?: number | null
           pcs: number
           reason: string
-          sublot_id: string
+          sublot_id?: string | null
           tray_code?: string | null
         }
         Update: {
@@ -311,12 +311,12 @@ export type Database = {
           gross_weight?: number | null
           huids?: string | null
           id?: string
-          item_id?: string
+          item_id?: string | null
           less_weight?: number | null
           net_weight?: number | null
           pcs?: number
           reason?: string
-          sublot_id?: string
+          sublot_id?: string | null
           tray_code?: string | null
         }
         Relationships: [
@@ -391,14 +391,14 @@ export type Database = {
           hold_flag: string | null
           huids: string | null
           id: string
-          item_id: string
+          item_id: string | null
           less_weight: number | null
           net_weight: number | null
           pcs: number
           reason: string
           removed_at: string
           removed_by: string
-          sublot_id: string
+          sublot_id: string | null
           tray_code: string | null
         }
         Insert: {
@@ -407,14 +407,14 @@ export type Database = {
           hold_flag?: string | null
           huids?: string | null
           id?: string
-          item_id: string
+          item_id?: string | null
           less_weight?: number | null
           net_weight?: number | null
           pcs: number
           reason: string
           removed_at?: string
           removed_by: string
-          sublot_id: string
+          sublot_id?: string | null
           tray_code?: string | null
         }
         Update: {
@@ -423,14 +423,14 @@ export type Database = {
           hold_flag?: string | null
           huids?: string | null
           id?: string
-          item_id?: string
+          item_id?: string | null
           less_weight?: number | null
           net_weight?: number | null
           pcs?: number
           reason?: string
           removed_at?: string
           removed_by?: string
-          sublot_id?: string
+          sublot_id?: string | null
           tray_code?: string | null
         }
         Relationships: [
@@ -900,7 +900,7 @@ export type Database = {
           huids_remaining: number | null
           id: string
           passed: boolean
-          sublot_id: string
+          sublot_id: string | null
           target_net: number | null
           target_pcs: number | null
           target_tags: number | null
@@ -915,7 +915,7 @@ export type Database = {
           huids_remaining?: number | null
           id?: string
           passed: boolean
-          sublot_id: string
+          sublot_id?: string | null
           target_net?: number | null
           target_pcs?: number | null
           target_tags?: number | null
@@ -930,7 +930,7 @@ export type Database = {
           huids_remaining?: number | null
           id?: string
           passed?: boolean
-          sublot_id?: string
+          sublot_id?: string | null
           target_net?: number | null
           target_pcs?: number | null
           target_tags?: number | null
@@ -950,24 +950,24 @@ export type Database = {
         Row: {
           id: string
           reason: string
-          removal_id: string
-          sublot_id: string
+          removal_id: string | null
+          sublot_id: string | null
           voided_at: string
           voided_by: string
         }
         Insert: {
           id?: string
           reason: string
-          removal_id: string
-          sublot_id: string
+          removal_id?: string | null
+          sublot_id?: string | null
           voided_at?: string
           voided_by?: string
         }
         Update: {
           id?: string
           reason?: string
-          removal_id?: string
-          sublot_id?: string
+          removal_id?: string | null
+          sublot_id?: string | null
           voided_at?: string
           voided_by?: string
         }
@@ -1535,6 +1535,10 @@ export type Database = {
       clear_hold: {
         Args: { p_item: string; p_note: string }
         Returns: undefined
+      }
+      clear_tag_slots: {
+        Args: { p_ser_no?: number; p_sublot: string }
+        Returns: number
       }
       clear_tray_session: { Args: { p_session: string }; Returns: undefined }
       close_sublot: { Args: { p_sublot: string }; Returns: boolean }
