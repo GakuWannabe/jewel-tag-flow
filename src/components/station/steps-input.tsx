@@ -117,6 +117,12 @@ export function TagStep({ snap, refresh, locked, go }: StepProps) {
                       <button type="button" aria-label="Edit" className="rounded p-1.5 hover:bg-accent" onClick={() => { setEdit(i); setEditVal(String(n)); }}><Pencil className="h-4 w-4" /></button>
                       <button type="button" aria-label="Remove" className="rounded p-1.5 text-destructive hover:bg-accent" onClick={() => setNums(list.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
                     </>}
+                    {!reviewing && !locked && (
+                      <button type="button" aria-label={`Remove ${n}`} className="rounded p-1.5 text-destructive hover:bg-accent" onClick={async () => {
+                        if (!confirm(`Remove tag number ${n}?`)) return;
+                        try { await rpc("clear_tag_slots", { p_sublot: snap.sublot.id, p_ser_no: n }); await refresh(); } catch (e) { toast.error(errMsg(e)); }
+                      }}><X className="h-4 w-4" /></button>
+                    )}
                   </>
                 )}
               </div>
@@ -135,6 +141,12 @@ export function TagStep({ snap, refresh, locked, go }: StepProps) {
             </>
           )}
         </div>
+      )}
+      {!reviewing && !locked && snap.tagNumbers.length > 0 && (
+        <Button variant="outline" className="h-12 w-full text-destructive" onClick={async () => {
+          if (!confirm(`Clear all ${snap.tagNumbers.length} tag numbers? Products keep their place; numbers are re-assigned automatically when a new list is imported or at seal.`)) return;
+          try { await rpc("clear_tag_slots", { p_sublot: snap.sublot.id, p_ser_no: null }); toast.success("Tag numbers cleared"); await refresh(); } catch (e) { toast.error(errMsg(e)); }
+        }}>Clear all tag numbers</Button>
       )}
       {!reviewing && snap.tagNumbers.length > 0 && <Button className="h-16 w-full text-xl" onClick={() => go("load")}>Next: Load tray →</Button>}
       {!reviewing && snap.tagNumbers.length === 0 && !busy && <p className="rounded-lg border-2 border-dashed p-6 text-center text-muted-foreground">No tag numbers yet. Upload one of the three above.</p>}
@@ -284,6 +296,16 @@ export function HuidListStep({ snap, refresh, locked, go }: StepProps) {
             })}
           </div>
         </details>
+      )}
+      {!rows && !locked && snap.pool.some((p) => !p.assigned_item_id) && (
+        <Button variant="outline" className="h-12 w-full text-destructive" onClick={async () => {
+          const free = snap.pool.filter((p) => !p.assigned_item_id);
+          const kept = snap.pool.length - free.length;
+          if (!confirm(`Clear all ${free.length} unmatched HUIDs? They are NOT re-filled automatically — you will have to enter them again.${kept ? ` ${kept} matched HUID(s) stay; unmatch them first to remove.` : ""}`)) return;
+          try { for (const p of free) await rpc("delete_pool_huid", { p_huid_pool_id: p.id, p_reason: "cleared at tray station (clear all)" }); toast.success(`${free.length} HUIDs cleared`); }
+          catch (e) { toast.error(errMsg(e)); }
+          await refresh();
+        }}>Clear all HUIDs</Button>
       )}
       {!rows && total > 0 && <Button className="h-16 w-full text-xl" onClick={() => go("match")}>Next: Match HUIDs to products →</Button>}
     </div>

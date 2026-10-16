@@ -28,6 +28,7 @@ function SublotPage() {
   const { data: settings } = useSettings();
   const [busy, setBusy] = useState("");
   const [tab, setTab] = useState("overview");
+  const [copied, setCopied] = useState(false);
   const unseal = useServerFn(unsealSublot);
   const links = useServerFn(photoLinks);
   const { data, refetch } = useQuery({
@@ -87,6 +88,7 @@ function SublotPage() {
         <div className="text-lg font-bold">{s.product_types.base_code} · {s.product_types.name}</div>
         <div className="num text-sm">IC {lot.branches.branch_code}{s.product_types.base_code}</div>
         <StatusBadge status={s.status} />
+        <Button size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(id); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? "Copied" : "Copy ID"}</Button>
         {removals.length > 0 && <span className="rounded bg-destructive px-2 py-1 text-xs font-bold text-destructive-foreground">ITEMS REMOVED ({removals.length})</span>}
         {s.halt_reason && <span className="font-bold text-destructive">{s.halt_reason.replace(/_/g, " ")}</span>}
         <div className="ml-auto flex flex-wrap gap-2">
