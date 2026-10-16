@@ -297,6 +297,16 @@ export function HuidListStep({ snap, refresh, locked, go }: StepProps) {
           </div>
         </details>
       )}
+      {!rows && !locked && snap.pool.some((p) => !p.assigned_item_id) && (
+        <Button variant="outline" className="h-12 w-full text-destructive" onClick={async () => {
+          const free = snap.pool.filter((p) => !p.assigned_item_id);
+          const kept = snap.pool.length - free.length;
+          if (!confirm(`Clear all ${free.length} unmatched HUIDs? They are NOT re-filled automatically — you will have to enter them again.${kept ? ` ${kept} matched HUID(s) stay; unmatch them first to remove.` : ""}`)) return;
+          try { for (const p of free) await rpc("delete_pool_huid", { p_huid_pool_id: p.id, p_reason: "cleared at tray station (clear all)" }); toast.success(`${free.length} HUIDs cleared`); }
+          catch (e) { toast.error(errMsg(e)); }
+          await refresh();
+        }}>Clear all HUIDs</Button>
+      )}
       {!rows && total > 0 && <Button className="h-16 w-full text-xl" onClick={() => go("match")}>Next: Match HUIDs to products →</Button>}
     </div>
   );
