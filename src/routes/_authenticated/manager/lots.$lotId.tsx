@@ -7,7 +7,7 @@ import { Plus, X, Copy, ChevronRight, Check } from "lucide-react";
 import { AppShell, StatusBadge } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { db, fmt3, errMsg } from "@/lib/db";
+import { db, rpc, fmt3, errMsg } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { useMasters, Field, Choice } from "./lots.index";
 import { cn } from "@/lib/utils";
@@ -170,9 +170,10 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
     toast.success(`Copied vendor, purity and charges from sublot #${last.sublot_no}`);
   };
 
+  const isCoins = f.lot_type === "coins";
   const sections = [
-    { k: "Product", ok: !!f.product_type_id },
-    { k: "Quantity", ok: Number(f.tags) > 0 && Number(f.pieces) > 0 && Number(f.net) > 0 },
+    { k: "Product", ok: !!f.product_type_id && !!f.lot_type },
+    { k: "Quantity", ok: isCoins ? Number(f.qty) > 0 && Number(f.piece_weight) > 0 : Number(f.tags) > 0 && Number(f.pieces) > 0 && Number(f.net) > 0 },
     { k: "Vendor & purity", ok: !!f.vendor_id && !!f.purity_id },
     { k: "Charges", ok: f.wastage_pct !== undefined && f.wastage_pct !== "" && f.making_value !== undefined && f.making_value !== "" && !!f.making_type },
   ];
@@ -180,21 +181,33 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
 
   const save = async () => {
     if (!ready) return toast.error("Finish the sections that aren't ticked yet");
-    if (showSuggest && !confirm(`Pieces is ${f.pieces}, but ${f.tags} tags × ${fixedPcs(pt)} pcs = ${suggested}. Keep ${f.pieces}?`)) return;
-    if (remaining && (Number(f.pieces) > remaining.pcs || Number(f.net) > remaining.net + 0.0005) &&
+    if (!isCoins && showSuggest && !confirm(`Pieces is ${f.pieces}, but ${f.tags} tags × ${fixedPcs(pt)} pcs = ${suggested}. Keep ${f.pieces}?`)) return;
+    const qty = isCoins ? Number(f.qty) : Number(f.pieces);
+    const netW = isCoins ? Number(f.qty) * Number(f.piece_weight) : Number(f.net);
+    if (remaining && (qty > remaining.pcs || netW > remaining.net + 0.0005) &&
       !confirm("This sublot goes over what's left of the lot's pieces or net weight. Save anyway?")) return;
     setBusy(true);
     try {
-      const next = subs.reduce((a: number, s: any) => Math.max(a, s.sublot_no), 0) + 1;
-      const { data: s, error } = await db.from("sublots").insert({
-        lot_id: lotId, sublot_no: next, product_type_id: f.product_type_id,
-        vendor_id: f.vendor_id, purity_id: f.purity_id, melting: purity?.melting,
-        wastage_pct: Number(f.wastage_pct), making_value: Number(f.making_value), making_type: f.making_type,
-      }).select().single();
-      if (error) throw error;
-      const { error: e2 } = await db.from("sublot_targets").insert({ sublot_id: s.id, declared_tags: Number(f.tags), declared_pieces: Number(f.pieces), declared_net_weight: Number(f.net) });
-      if (e2) throw e2;
-      toast.success(`Sublot ${next} saved as a draft`);
+      if (isCoins) {
+        // Identical coins: the app creates the items directly — no trays, no photography, straight to tagging.
+        await rpc<string>("create_coins_sublot", {
+          p_lot: lotId, p_product_type: f.product_type_id, p_qty: Number(f.qty), p_weight: Number(f.piece_weight),
+          p_vendor: f.vendor_id, p_purity: f.purity_id, p_melting: purity?.melting ?? null,
+          p_wastage: Number(f.wastage_pct), p_making_value: Number(f.making_value), p_making_type: f.making_type,
+        });
+        toast.success("Coins sublot created — ready for tagging (no tray work needed)");
+      } else {
+        const next = subs.reduce((a: number, s: any) => Math.max(a, s.sublot_no), 0) + 1;
+        const { data: s, error } = await db.from("sublots").insert({
+          lot_id: lotId, sublot_no: next, product_type_id: f.product_type_id, lot_type: "tray",
+          vendor_id: f.vendor_id, purity_id: f.purity_id, melting: purity?.melting,
+          wastage_pct: Number(f.wastage_pct), making_value: Number(f.making_value), making_type: f.making_type,
+        }).select().single();
+        if (error) throw error;
+        const { error: e2 } = await db.from("sublot_targets").insert({ sublot_id: s.id, declared_tags: Number(f.tags), declared_pieces: Number(f.pieces), declared_net_weight: Number(f.net) });
+        if (e2) throw e2;
+        toast.success(`Sublot ${next} saved as a draft`);
+      }
       onSaved();
     } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
