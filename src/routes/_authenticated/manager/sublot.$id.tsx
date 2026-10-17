@@ -110,7 +110,7 @@ function SublotPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-3 h-auto flex-wrap">
-          {["overview", "tag slots", "huids", "items", "photos", "seal & export"].map((t) => <TabsTrigger key={t} value={t} className="h-10 px-4 capitalize">{t}</TabsTrigger>)}
+          {["overview", "huids", "items", "photos", "seal & export"].map((t) => <TabsTrigger key={t} value={t} className="h-10 px-4 capitalize">{t}</TabsTrigger>)}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-3">
@@ -187,9 +187,6 @@ function SublotPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="tag slots">
-          <TagSlotPanel sublot={s} branch={lot.branches.branch_code} baseCode={s.product_types.base_code} declaredTags={target?.declared_tags} canEdit={isMgr && !sealed} onDone={refetch} />
-        </TabsContent>
         <TabsContent value="huids">
           <HuidPanel sublot={s} expectedPieces={target?.declared_pieces} canEdit={isMgr && !sealed} onDone={refetch} />
           <p className="mt-2 text-xs text-muted-foreground">The pool should hold exactly one HUID per declared piece.</p>
@@ -201,12 +198,12 @@ function SublotPage() {
           {!sealed && (
             <Box title="Seal preconditions">
               <ul className="space-y-1">{checks.map((c) => <li key={c.label} className={c.ok ? "text-success" : "font-semibold text-destructive"}>{c.ok ? "✓" : "✗"} {c.label}</li>)}</ul>
-              <p className="text-xs text-muted-foreground">Sealing normally happens automatically when reconciliation passes. Use this only to recover a sublot that is halted or waiting to seal.</p>
+              <p className="text-xs text-muted-foreground">Sealing normally happens automatically when reconciliation passes. Use this only to recover a sublot that is halted or waiting to seal. Tag numbers come from the bot, not from an imported list.</p>
               {isMgr && ["ready_to_seal", "halted"].includes(s.status) && (
                 <Button className="h-14 w-full text-lg" disabled={!!busy || !checks.every((c) => c.ok)} onClick={() => {
-                  if (!confirm("Seal? Tag numbers will be assigned, the sublot locked and sent to photography.")) return;
-                  void run("seal", async () => { const n = await rpc<number>("seal_sublot", { p_sublot: id }); toast.success(`Sealed: ${n} tags assigned — now in photography`); });
-                }}>Seal & assign tag slots</Button>
+                  if (!confirm("Seal? The sublot is locked and sent to the bot for tagging.")) return;
+                  void run("seal", async () => { const n = await rpc<number>("seal_sublot", { p_sublot: id }); toast.success(`Sealed: ${n} items queued for tagging`); });
+                }}>Seal & send to tagging</Button>
               )}
             </Box>
           )}
