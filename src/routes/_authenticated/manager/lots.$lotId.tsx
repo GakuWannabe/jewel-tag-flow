@@ -7,7 +7,7 @@ import { Plus, X, Copy, ChevronRight, Check } from "lucide-react";
 import { AppShell, StatusBadge } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { db, fmt3, errMsg } from "@/lib/db";
+import { db, rpc, fmt3, errMsg } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 import { useMasters, Field, Choice } from "./lots.index";
 import { cn } from "@/lib/utils";
@@ -101,6 +101,7 @@ function LotDetail() {
               <span className="text-lg font-extrabold">#{s.sublot_no}</span>
               <span className="font-semibold">{s.product_types.base_code} · {s.product_types.name}</span>
               <StatusBadge status={s.status} />
+              {s.lot_type === "coins" && <span className="rounded bg-muted px-2 py-0.5 text-xs font-bold">COINS</span>}
               {s.target && s.target.removed_tags > 0 && <span className="rounded bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">ITEMS REMOVED</span>}
               <ChevronRight className="ml-auto h-5 w-5" />
             </Link>
@@ -170,9 +171,10 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
     toast.success(`Copied vendor, purity and charges from sublot #${last.sublot_no}`);
   };
 
+  const isCoins = f.lot_type === "coins";
   const sections = [
-    { k: "Product", ok: !!f.product_type_id },
-    { k: "Quantity", ok: Number(f.tags) > 0 && Number(f.pieces) > 0 && Number(f.net) > 0 },
+    { k: "Product", ok: !!f.product_type_id && !!f.lot_type },
+    { k: "Quantity", ok: isCoins ? Number(f.qty) > 0 && Number(f.piece_weight) > 0 : Number(f.tags) > 0 && Number(f.pieces) > 0 && Number(f.net) > 0 },
     { k: "Vendor & purity", ok: !!f.vendor_id && !!f.purity_id },
     { k: "Charges", ok: f.wastage_pct !== undefined && f.wastage_pct !== "" && f.making_value !== undefined && f.making_value !== "" && !!f.making_type },
   ];
@@ -180,21 +182,33 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
 
   const save = async () => {
     if (!ready) return toast.error("Finish the sections that aren't ticked yet");
-    if (showSuggest && !confirm(`Pieces is ${f.pieces}, but ${f.tags} tags × ${fixedPcs(pt)} pcs = ${suggested}. Keep ${f.pieces}?`)) return;
-    if (remaining && (Number(f.pieces) > remaining.pcs || Number(f.net) > remaining.net + 0.0005) &&
+    if (!isCoins && showSuggest && !confirm(`Pieces is ${f.pieces}, but ${f.tags} tags × ${fixedPcs(pt)} pcs = ${suggested}. Keep ${f.pieces}?`)) return;
+    const qty = isCoins ? Number(f.qty) : Number(f.pieces);
+    const netW = isCoins ? Number(f.qty) * Number(f.piece_weight) : Number(f.net);
+    if (remaining && (qty > remaining.pcs || netW > remaining.net + 0.0005) &&
       !confirm("This sublot goes over what's left of the lot's pieces or net weight. Save anyway?")) return;
     setBusy(true);
     try {
-      const next = subs.reduce((a: number, s: any) => Math.max(a, s.sublot_no), 0) + 1;
-      const { data: s, error } = await db.from("sublots").insert({
-        lot_id: lotId, sublot_no: next, product_type_id: f.product_type_id,
-        vendor_id: f.vendor_id, purity_id: f.purity_id, melting: purity?.melting,
-        wastage_pct: Number(f.wastage_pct), making_value: Number(f.making_value), making_type: f.making_type,
-      }).select().single();
-      if (error) throw error;
-      const { error: e2 } = await db.from("sublot_targets").insert({ sublot_id: s.id, declared_tags: Number(f.tags), declared_pieces: Number(f.pieces), declared_net_weight: Number(f.net) });
-      if (e2) throw e2;
-      toast.success(`Sublot ${next} saved as a draft`);
+      if (isCoins) {
+        // Identical coins: the app creates the items directly — no trays, no photography, straight to tagging.
+        await rpc<string>("create_coins_sublot", {
+          p_lot: lotId, p_product_type: f.product_type_id, p_qty: Number(f.qty), p_weight: Number(f.piece_weight),
+          p_vendor: f.vendor_id, p_purity: f.purity_id, p_melting: purity?.melting ?? null,
+          p_wastage: Number(f.wastage_pct), p_making_value: Number(f.making_value), p_making_type: f.making_type,
+        });
+        toast.success("Coins sublot created — ready for tagging (no tray work needed)");
+      } else {
+        const next = subs.reduce((a: number, s: any) => Math.max(a, s.sublot_no), 0) + 1;
+        const { data: s, error } = await db.from("sublots").insert({
+          lot_id: lotId, sublot_no: next, product_type_id: f.product_type_id, lot_type: "tray",
+          vendor_id: f.vendor_id, purity_id: f.purity_id, melting: purity?.melting,
+          wastage_pct: Number(f.wastage_pct), making_value: Number(f.making_value), making_type: f.making_type,
+        }).select().single();
+        if (error) throw error;
+        const { error: e2 } = await db.from("sublot_targets").insert({ sublot_id: s.id, declared_tags: Number(f.tags), declared_pieces: Number(f.pieces), declared_net_weight: Number(f.net) });
+        if (e2) throw e2;
+        toast.success(`Sublot ${next} saved as a draft`);
+      }
       onSaved();
     } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
   };
@@ -222,13 +236,32 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
         <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-2 hover:bg-accent"><X className="h-6 w-6" /></button>
       </div>
 
-      {Section({ i: 0, title: "What product?", hint: "One product type per sublot", children: (
+      {Section({ i: 0, title: "What product?", hint: "Sublots in one lot can be different products", children: (
         m.productTypes.length === 0 ? <p className="text-destructive">Branch {lot?.branches?.branch_code} · {lot?.branches?.branch_name} has no product types yet. Add them in Master data first.</p> :
-        <Choice value={f.product_type_id} onChange={(v) => set({ product_type_id: v })}
-          options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, sub: `${(p.allowed_pcs ?? [p.default_pcs]).join(" / ")} piece(s) per tag` }))} />
+        <>
+          <Field label="Kind">
+            <Choice value={f.lot_type} onChange={(v) => set({ lot_type: v })}
+              options={[{ v: "tray", label: "Tray", sub: "Jewellery — weighed & photographed" }, { v: "coins", label: "Coins", sub: "Identical pieces — straight to tagging" }]} />
+          </Field>
+          {m.productTypes.length > 8
+            ? <SearchPick value={f.product_type_id} onChange={(v) => set({ product_type_id: v })} placeholder="Choose product…"
+                options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, search: `${p.base_code} ${p.name}` }))} />
+            : <Choice value={f.product_type_id} onChange={(v) => set({ product_type_id: v })}
+                options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, sub: `${(p.allowed_pcs ?? [p.default_pcs]).join(" / ")} piece(s) per tag` }))} />}
+        </>
       ) })}
 
-      {Section({ i: 1, title: "How many, how heavy?", children: (
+      {Section({ i: 1, title: "How many, how heavy?", children: isCoins ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="How many coins?" hint="Every coin is identical">
+            <Input className="num h-14 text-xl" inputMode="numeric" value={f.qty ?? ""} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, "") })} placeholder="0" />
+          </Field>
+          <Field label="Weight of one coin (g)" hint="All coins get this exact weight">
+            <Input className="num h-14 text-xl" inputMode="decimal" value={f.piece_weight ?? ""} onChange={(e) => setF({ ...f, piece_weight: e.target.value })} placeholder="0.000" />
+          </Field>
+          {remaining && <p className="num text-xs text-muted-foreground sm:col-span-2">Left in this lot: {remaining.pcs} pieces · {fmt3(remaining.net)} g net</p>}
+        </div>
+      ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Tags (compartments)" hint="How many price tags / tray spots">

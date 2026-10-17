@@ -24,17 +24,27 @@ export const Route = createFileRoute("/api/public/batches/$sublotId/items/$seque
         const { data: sub } = await g.admin.from("sublots").select("status").eq("id", params.sublotId).single();
         if (!sub) return json({ error: "Sublot not found" }, 404);
         if (sub.status === "halted") return json({ error: "Sublot halted — stop", halt: true }, 409);
-        const { data: item } = await g.admin.from("items").select("id,ser_no").eq("sublot_id", params.sublotId).eq("sequence", seq).is("deleted_at", null).maybeSingle();
+        const { data: item } = await g.admin.from("items").select("id,ser_no,compcode,ic").eq("sublot_id", params.sublotId).eq("sequence", seq).is("deleted_at", null).maybeSingle();
         if (!item) return json({ error: "No item at that sequence" }, 404);
-        const mismatch = b.status === "ok" && b.actual_ser_no != null && b.actual_ser_no !== item.ser_no;
+        // A mismatch can only be checked once a number was already recorded; the first report IS the number.
+        const mismatch = b.status === "ok" && b.actual_ser_no != null && item.ser_no != null && b.actual_ser_no !== item.ser_no;
         await g.admin.from("bot_results").insert({
           sublot_id: params.sublotId, sequence: seq, expected_ser_no: item.ser_no, actual_ser_no: b.actual_ser_no ?? null,
           status: b.status, error_message: b.error_message ?? null, mismatch, bot_client_id: g.bot.id,
         });
-        if (b.actual_ser_no != null) await g.admin.from("items").update({ actual_ser_no: b.actual_ser_no }).eq("id", item.id);
+        if (b.actual_ser_no != null) {
+          const filename = `${item.compcode ?? ""}${item.ic ?? ""}${b.actual_ser_no}.jpg`.toLowerCase();
+          await g.admin.from("items").update({ ser_no: b.actual_ser_no, actual_ser_no: b.actual_ser_no, photo_filename: filename }).eq("id", item.id);
+        }
         if (mismatch || b.status === "failed") {
           await g.admin.from("sublots").update({ status: "halted", halt_reason: mismatch ? "bot_mismatch" : "bot_failed" }).eq("id", params.sublotId);
           return json({ recorded: true, halt: true, expected_ser_no: item.ser_no, actual_ser_no: b.actual_ser_no }, 409);
+        }
+        // Tagging complete → photography.
+        if (sub.status === "sealed") {
+          const { count } = await g.admin.from("items").select("id", { count: "exact", head: true })
+            .eq("sublot_id", params.sublotId).is("deleted_at", null).is("ser_no", null);
+          if (count === 0) await g.admin.from("sublots").update({ status: "photography" }).eq("id", params.sublotId);
         }
         return json({ recorded: true, halt: false });
       }),

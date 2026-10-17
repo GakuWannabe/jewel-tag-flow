@@ -486,7 +486,7 @@ export type Database = {
           source_photo_name: string | null
           stone_pcs: number | null
           sublot_id: string
-          tray_session_id: string
+          tray_session_id: string | null
           type: string | null
           updated_at: string | null
           updated_by: string | null
@@ -528,7 +528,7 @@ export type Database = {
           source_photo_name?: string | null
           stone_pcs?: number | null
           sublot_id: string
-          tray_session_id: string
+          tray_session_id?: string | null
           type?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -570,7 +570,7 @@ export type Database = {
           source_photo_name?: string | null
           stone_pcs?: number | null
           sublot_id?: string
-          tray_session_id?: string
+          tray_session_id?: string | null
           type?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -662,6 +662,7 @@ export type Database = {
       lots: {
         Row: {
           branch_id: string
+          closed_at: string | null
           created_at: string
           created_by: string | null
           delete_reason: string | null
@@ -683,6 +684,7 @@ export type Database = {
         }
         Insert: {
           branch_id: string
+          closed_at?: string | null
           created_at?: string
           created_by?: string | null
           delete_reason?: string | null
@@ -704,6 +706,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string
+          closed_at?: string | null
           created_at?: string
           created_by?: string | null
           delete_reason?: string | null
@@ -1144,6 +1147,7 @@ export type Database = {
           halt_reason: string | null
           id: string
           lot_id: string
+          lot_type: string
           making_type: Database["public"]["Enums"]["making_type"] | null
           making_value: number | null
           melting: number | null
@@ -1171,6 +1175,7 @@ export type Database = {
           halt_reason?: string | null
           id?: string
           lot_id: string
+          lot_type?: string
           making_type?: Database["public"]["Enums"]["making_type"] | null
           making_value?: number | null
           melting?: number | null
@@ -1198,6 +1203,7 @@ export type Database = {
           halt_reason?: string | null
           id?: string
           lot_id?: string
+          lot_type?: string
           making_type?: Database["public"]["Enums"]["making_type"] | null
           making_value?: number | null
           melting?: number | null
@@ -1469,6 +1475,44 @@ export type Database = {
         }
         Relationships: []
       }
+      variance_overrides: {
+        Row: {
+          actual_snapshot: Json | null
+          created_at: string
+          declared_snapshot: Json | null
+          id: string
+          overridden_by: string | null
+          reason: string
+          sublot_id: string | null
+        }
+        Insert: {
+          actual_snapshot?: Json | null
+          created_at?: string
+          declared_snapshot?: Json | null
+          id?: string
+          overridden_by?: string | null
+          reason: string
+          sublot_id?: string | null
+        }
+        Update: {
+          actual_snapshot?: Json | null
+          created_at?: string
+          declared_snapshot?: Json | null
+          id?: string
+          overridden_by?: string | null
+          reason?: string
+          sublot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variance_overrides_sublot_id_fkey"
+            columns: ["sublot_id"]
+            isOneToOne: false
+            referencedRelation: "sublots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendors: {
         Row: {
           active: boolean
@@ -1536,16 +1580,38 @@ export type Database = {
         Args: { p_item: string; p_note: string }
         Returns: undefined
       }
-      clear_tag_slots: {
-        Args: { p_ser_no?: number; p_sublot: string }
-        Returns: number
-      }
       clear_tray_session: { Args: { p_session: string }; Returns: undefined }
       close_sublot: { Args: { p_sublot: string }; Returns: boolean }
       close_tray_session: { Args: { p_session: string }; Returns: undefined }
       correct_item: {
         Args: { p_item: string; p_reason: string }
         Returns: undefined
+      }
+      create_coins_sublot: {
+        Args: {
+          p_lot: string
+          p_making_type: Database["public"]["Enums"]["making_type"]
+          p_making_value: number
+          p_melting: number
+          p_product_type: string
+          p_purity: string
+          p_qty: number
+          p_vendor: string
+          p_wastage: number
+          p_weight: number
+        }
+        Returns: string
+      }
+      create_lot_auto: {
+        Args: {
+          p_branch: string
+          p_gross: number
+          p_net: number
+          p_notes: string
+          p_pcs: number
+          p_received: string
+        }
+        Returns: string
       }
       delete_lot: {
         Args: { p_confirm: string; p_lot: string }
@@ -1591,14 +1657,6 @@ export type Database = {
         Args: { p_rows: Json; p_sublot: string }
         Returns: number
       }
-      import_tag_numbers: {
-        Args: { p_ser_nos: number[]; p_sublot: string }
-        Returns: number
-      }
-      import_tag_slots: {
-        Args: { p_headers: Json; p_rows: Json; p_sublot: string }
-        Returns: number
-      }
       is_mgr: { Args: never; Returns: boolean }
       is_mgr_or_aud: { Args: never; Returns: boolean }
       manager_reopen_sublot: {
@@ -1617,6 +1675,10 @@ export type Database = {
       open_tray_session: {
         Args: { p_sublot: string; p_tray: string }
         Returns: string
+      }
+      override_variance: {
+        Args: { p_reason: string; p_sublot: string }
+        Returns: undefined
       }
       refresh_photo_status: { Args: { p_sublot: string }; Returns: string }
       remove_item: {

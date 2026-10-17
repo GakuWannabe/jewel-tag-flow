@@ -12,9 +12,12 @@ export interface Snap {
   pool: PoolRow[];
   itemHuids: Record<string, string[]>;
   sublotGross: number[]; // gross weights of OTHER sessions' items, for the running average
-  tagNumbers: number[]; // current (non-superseded) tag slots for the sublot
+  loadedCount: number; // compartments occupied in this tray
+  totalWeight: number; // running total net weight of weighed items in this tray
   fetchedAt: number;
 }
+
+const ITEM_COLS = "id,tray_session_id,compartment_no,sublot_id,sequence,gross_weight,less_weight,net_weight,pcs,narration,compcode,type,ic,ser_no,actual_ser_no,photo_filename,photo_url,source_photo_name,hold_flag,hold_note,deleted_at,weighed_at,photo_matched_at";
 
 async function fetchSnap(sessionId: string): Promise<Snap> {
   const { data: s, error } = await db
@@ -23,15 +26,15 @@ async function fetchSnap(sessionId: string): Promise<Snap> {
     .eq("id", sessionId)
     .single();
   if (error) throw new Error(error.message);
-  const [items, pool, ih, others, tags] = await Promise.all([
-    db.from("items").select("*").eq("tray_session_id", sessionId).is("deleted_at", null),
+  const [items, pool, ih, others] = await Promise.all([
+    db.from("items").select(ITEM_COLS).eq("tray_session_id", sessionId).is("deleted_at", null),
     db.from("huid_pool").select("id,sublot_id,huid,assigned_item_id,deleted_at").eq("sublot_id", s.sublot_id).is("deleted_at", null).order("created_at"),
     db.from("item_huids").select("item_id,position,huid_pool(huid), items!inner(sublot_id)").is("removed_at", null).eq("items.sublot_id", s.sublot_id),
     db.from("items").select("gross_weight").eq("sublot_id", s.sublot_id).neq("tray_session_id", sessionId).is("deleted_at", null).not("gross_weight", "is", null),
-    db.from("tag_slots").select("ser_no").eq("sublot_id", s.sublot_id).is("superseded_at", null).order("ser_no"),
   ]);
   const itemHuids: Record<string, string[]> = {};
   for (const r of (ih.data ?? []).sort((a: any, b: any) => a.position - b.position)) (itemHuids[r.item_id] ??= []).push(r.huid_pool.huid);
+  const its = (items.data ?? []) as Item[];
   return {
     session: { id: s.id, status: s.status, station: s.station, sublot_id: s.sublot_id },
     tray: s.trays,
@@ -41,11 +44,12 @@ async function fetchSnap(sessionId: string): Promise<Snap> {
       base_code: s.sublots.product_types.base_code, product_name: s.sublots.product_types.name, default_pcs: s.sublots.product_types.default_pcs,
       allowed_pcs: s.sublots.product_types.allowed_pcs ?? [s.sublots.product_types.default_pcs],
     },
-    items: items.data ?? [],
+    items: its,
     pool: pool.data ?? [],
     itemHuids,
     sublotGross: (others.data ?? []).map((x: any) => Number(x.gross_weight)),
-    tagNumbers: (tags.data ?? []).map((t: any) => t.ser_no),
+    loadedCount: its.length,
+    totalWeight: its.reduce((a, i) => a + Number(i.net_weight ?? 0), 0),
     fetchedAt: Date.now(),
   };
 }
@@ -69,23 +73,23 @@ export function applyOp(snap: Snap, op: Op): Snap {
         s.items = s.items.filter((i) => i !== ex);
       }
       s.session.status = s.items.length ? "loaded" : "empty";
-      return s;
+      break;
     }
     case "move_item": {
       const it = s.items.find((i) => i.id === a.p_item);
       if (!it) return snap;
       const from = it.compartment_no;
       s.items = s.items.map((i) => i.id === a.p_item ? { ...i, compartment_no: a.p_to } : i.compartment_no === a.p_to ? { ...i, compartment_no: from } : i);
-      return s;
+      break;
     }
-    case "start_weighing": s.session.station = "weighing"; return s;
+    case "start_weighing": s.session.station = "weighing"; break;
     case "save_weight":
       s.items = s.items.map((i) => i.id === a.p_item ? { ...i, gross_weight: a.p_gross, less_weight: a.p_less, net_weight: +(a.p_gross - a.p_less).toFixed(3), pcs: a.p_pcs, narration: a.p_narration } : i);
-      return s;
+      break;
     case "unassign_item_huids": {
       s.pool = s.pool.map((p) => (p.assigned_item_id === a.p_item ? { ...p, assigned_item_id: null } : p));
       delete s.itemHuids[a.p_item];
-      return s;
+      break;
     }
     case "assign_item_huids": {
       s.pool = s.pool.map((p) => (p.assigned_item_id === a.p_item ? { ...p, assigned_item_id: null } : p));
@@ -95,14 +99,17 @@ export function applyOp(snap: Snap, op: Op): Snap {
         else s.pool.push({ id: `local-${h}`, sublot_id: s.sublot.id, huid: h, assigned_item_id: a.p_item, deleted_at: null });
       }
       s.itemHuids[a.p_item] = a.p_huids;
-      return s;
+      break;
     }
     case "set_hold":
       s.items = s.items.map((i) => (i.id === a.p_item ? { ...i, hold_flag: a.p_flag, hold_note: a.p_note } : i));
-      return s;
-    case "close_tray_session": s.session.status = "weighed"; return s;
+      break;
+    case "close_tray_session": s.session.status = "weighed"; break;
     default: return snap;
   }
+  s.loadedCount = s.items.length;
+  s.totalWeight = s.items.reduce((x, i) => x + Number(i.net_weight ?? 0), 0);
+  return s;
 }
 
 export function useStation(sessionId: string) {
@@ -123,7 +130,7 @@ export function useStation(sessionId: string) {
   }, [sessionId]);
 
   useEffect(() => {
-    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? { ...c, tagNumbers: c.tagNumbers ?? [] }); });
+    snapGet<Snap>(sessionId).then((c) => { if (c) setBase((b) => b ?? c); });
     void refresh();
     return onFlushed(() => void refresh());
   }, [sessionId, refresh]);
@@ -137,7 +144,6 @@ export function useStation(sessionId: string) {
     const ch = db.channel(`station-${sessionId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "items", filter: `sublot_id=eq.${sublotId}` }, kick)
       .on("postgres_changes", { event: "*", schema: "public", table: "huid_pool", filter: `sublot_id=eq.${sublotId}` }, kick)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tag_slots", filter: `sublot_id=eq.${sublotId}` }, kick)
       .on("postgres_changes", { event: "*", schema: "public", table: "tray_sessions", filter: `id=eq.${sessionId}` }, kick)
       .on("postgres_changes", { event: "*", schema: "public", table: "item_huids" }, kick)
       .subscribe();

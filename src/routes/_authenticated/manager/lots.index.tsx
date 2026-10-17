@@ -8,7 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { db, errMsg, fmt3 } from "@/lib/db";
+import { db, rpc, errMsg, fmt3 } from "@/lib/db";
 import { useServerFn } from "@tanstack/react-start";
 import { deleteLot } from "@/lib/photos.functions";
 import { useAuth } from "@/lib/auth";
@@ -87,6 +87,7 @@ function Lots() {
   });
   const lots = data?.lots ?? [];
   const [open, setOpen] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
   const [del, setDel] = useState<any>(null);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
@@ -96,23 +97,31 @@ function Lots() {
 
   const gross = Number(f.gross), net = Number(f.net), pcs = Number(f.pcs);
   const netTooHigh = f.gross && f.net && net > gross;
-  const ready = f.lot_no?.trim() && f.branch_id && gross > 0 && net > 0 && !netTooHigh && Number.isInteger(pcs) && pcs > 0;
+  const ready = f.branch_id && gross > 0 && net > 0 && !netTooHigh && Number.isInteger(pcs) && pcs > 0;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ready) return;
     setBusy(true);
     try {
-      const { data: lot, error } = await db.from("lots").insert({
-        lot_no: f.lot_no.trim().toUpperCase(), branch_id: f.branch_id, received_date: f.received_date, notes: f.notes || null,
-      }).select("id").single();
-      if (error) throw new Error(error.message.includes("duplicate") ? "That lot number already exists for this branch" : error.message);
-      const { error: e2 } = await db.from("lot_targets").insert({ lot_id: lot.id, total_gross_weight: gross, total_net_weight: net, total_pcs: pcs });
-      if (e2) throw e2;
+      // Lot number is allocated on the server — safe even if two managers create lots at once.
+      const id = await rpc<string>("create_lot_auto", {
+        p_branch: f.branch_id, p_received: f.received_date, p_notes: f.notes || null,
+        p_gross: gross, p_net: net, p_pcs: pcs,
+      });
       toast.success("Lot created — now add its sublots");
       setF(blank); setOpen(false);
-      void nav({ to: "/manager/lots/$lotId", params: { lotId: lot.id } });
+      void nav({ to: "/manager/lots/$lotId", params: { lotId: id } });
     } catch (err) { toast.error(errMsg(err)); } finally { setBusy(false); }
+  };
+
+  const toggleClosed = async (l: any) => {
+    const closing = !l.closed_at;
+    if (closing && !confirm(`Close lot ${l.lot_no}? It moves to the Closed list.`)) return;
+    const { error } = await db.from("lots").update({ closed_at: closing ? new Date().toISOString() : null }).eq("id", l.id);
+    if (error) return toast.error(error.message);
+    toast.success(closing ? `Lot ${l.lot_no} closed` : `Lot ${l.lot_no} reopened`);
+    refetch();
   };
 
   return (
@@ -128,8 +137,8 @@ function Lots() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field n={1} label="Lot number" hint="Exactly as written on the packet">
-              <Input autoFocus className="num h-14 text-xl uppercase" value={f.lot_no ?? ""} onChange={(e) => setF({ ...f, lot_no: e.target.value })} placeholder="L2609047" />
+            <Field n={1} label="Lot number" hint="Given automatically — the next free number for the branch">
+              <div className="flex h-14 items-center rounded-md border bg-muted px-3 text-lg font-semibold text-muted-foreground">Assigned on save</div>
             </Field>
             <Field n={2} label="Received on">
               <Input type="date" className="h-14 text-lg" value={f.received_date} onChange={(e) => setF({ ...f, received_date: e.target.value })} />
@@ -159,8 +168,18 @@ function Lots() {
       )}
 
       {lots.length > 0 && !open && <p className="mb-2 text-sm text-muted-foreground">Tap a lot to add sublots and send them to staff.</p>}
+      {!open && (
+        <div className="mb-3 flex gap-2">
+          {(["open", "closed"] as const).map((k) => (
+            <button key={k} type="button" onClick={() => setShowClosed(k === "closed")}
+              className={cn("h-11 rounded-xl border-2 px-5 font-bold capitalize", (k === "closed") === showClosed ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground")}>
+              {k} ({lots.filter((l: any) => (k === "closed") === !!l.closed_at).length})
+            </button>
+          ))}
+        </div>
+      )}
       <div className="space-y-2">
-        {lots.map((l: any) => {
+        {lots.filter((l: any) => showClosed === !!l.closed_at).map((l: any) => {
           const t = data?.targets.find((x: any) => x.lot_id === l.id);
           return (
             <div key={l.id} className="flex items-stretch gap-2">
@@ -172,10 +191,16 @@ function Lots() {
                 <div className="ml-auto flex items-center gap-1 text-sm font-semibold">{l.sublots?.length ?? 0} sublot{l.sublots?.length === 1 ? "" : "s"}<ChevronRight className="h-5 w-5" /></div>
               </Link>
               {isMgr && (
-                <button type="button" aria-label={`Delete lot ${l.lot_no}`} onClick={() => { setDel(l); setTyped(""); }}
-                  className="flex w-14 items-center justify-center rounded-xl border-2 bg-card text-destructive hover:bg-destructive hover:text-destructive-foreground">
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                <div className="flex flex-col gap-1">
+                  <button type="button" onClick={() => toggleClosed(l)}
+                    className="flex h-1/2 flex-1 items-center justify-center rounded-xl border-2 bg-card px-2 text-xs font-bold text-muted-foreground hover:border-primary">
+                    {l.closed_at ? "Reopen" : "Close"}
+                  </button>
+                  <button type="button" aria-label={`Delete lot ${l.lot_no}`} onClick={() => { setDel(l); setTyped(""); }}
+                    className="flex h-1/2 flex-1 items-center justify-center rounded-xl border-2 bg-card px-2 text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               )}
             </div>
           );

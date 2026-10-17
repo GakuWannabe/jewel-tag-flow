@@ -4,6 +4,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell, StatusBadge } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db, rpc, errMsg, fmt3 } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
@@ -12,7 +16,6 @@ import { buildManualZip, buildSheet, downloadBlob } from "@/lib/export";
 import { useServerFn } from "@tanstack/react-start";
 import { unsealSublot, photoLinks } from "@/lib/photos.functions";
 import { PhotoPanel } from "@/components/sublot/PhotoPanel";
-import { TagSlotPanel } from "@/components/sublot/TagSlotPanel";
 import { HuidPanel } from "@/components/sublot/HuidPanel";
 import { ItemsPanel } from "@/components/sublot/ItemsPanel";
 
@@ -29,28 +32,30 @@ function SublotPage() {
   const [busy, setBusy] = useState("");
   const [tab, setTab] = useState("overview");
   const [copied, setCopied] = useState(false);
+  const [ovOpen, setOvOpen] = useState(false);
+  const [ovReason, setOvReason] = useState("");
   const unseal = useServerFn(unsealSublot);
   const links = useServerFn(photoLinks);
   const { data, refetch } = useQuery({
     queryKey: ["sublot-admin", id],
     queryFn: async () => {
       const { data: s } = await db.from("sublots").select("*, product_types(*), lots(*, branches(*), vendors(*))").eq("id", id).single();
-      const [t, r, pool, items, slots, photog, br, rm] = await Promise.all([
+      const [t, r, pool, items, photog, br, rm, ov] = await Promise.all([
         db.from("sublot_targets").select("*").eq("sublot_id", id).maybeSingle(),
         db.from("reconciliations").select("*").eq("sublot_id", id).order("created_at", { ascending: false }).limit(1),
         db.from("huid_pool").select("id,huid,assigned_item_id").eq("sublot_id", id).is("deleted_at", null),
-        db.from("items").select("id,pcs,net_weight,hold_flag,photo_url,gross_weight").eq("sublot_id", id).is("deleted_at", null),
-        db.from("tag_slots").select("id,assigned_item_id").eq("sublot_id", id).is("superseded_at", null),
+        db.from("items").select("id,pcs,net_weight,hold_flag,photo_url,gross_weight,ser_no,sequence").eq("sublot_id", id).is("deleted_at", null),
         db.from("user_roles").select("user_id, profiles:user_id(name)").eq("role", "photo"),
         db.from("bot_results").select("*").eq("sublot_id", id).order("created_at", { ascending: false }).limit(20),
         db.from("item_removals").select("*").eq("sublot_id", id).order("removed_at", { ascending: false }),
+        db.from("variance_overrides").select("*, profiles:overridden_by(name)").eq("sublot_id", id).order("created_at", { ascending: false }),
       ]);
       const removals = rm.data ?? [];
       const { data: voids } = await db.from("removal_voids").select("*").eq("sublot_id", id);
       const uids = [...new Set([...removals.map((x: any) => x.removed_by), ...(voids ?? []).map((v: any) => v.voided_by)])];
       const { data: profs } = uids.length ? await db.from("profiles").select("id,name").in("id", uids) : { data: [] };
       const nm = (u: string) => (profs ?? []).find((p: any) => p.id === u)?.name ?? "—";
-      return { s, target: t.data, recon: r.data?.[0], pool: pool.data ?? [], items: items.data ?? [], slots: slots.data ?? [], photographers: photog.data ?? [], botResults: br.data ?? [],
+      return { s, target: t.data, recon: r.data?.[0], pool: pool.data ?? [], items: items.data ?? [], overrides: ov.data ?? [], photographers: photog.data ?? [], botResults: br.data ?? [],
         removals: removals.map((x: any) => {
           const v = (voids ?? []).find((v: any) => v.removal_id === x.id);
           return { ...x, by: nm(x.removed_by), void: v ? { ...v, by: nm(v.voided_by) } : null };
@@ -58,7 +63,7 @@ function SublotPage() {
     },
   });
   if (!data?.s) return <AppShell title="Sublot" back="/manager/lots"><p>Loading…</p></AppShell>;
-  const { s, target, recon, pool, items, slots, removals } = data;
+  const { s, target, recon, pool, items, removals, overrides } = data;
   const lot = s.lots;
   const tt = target ? target.declared_tags - target.removed_tags : 0;
   const tp = target ? target.declared_pieces - target.removed_pieces : 0;
@@ -67,7 +72,6 @@ function SublotPage() {
   const enteredNet = items.reduce((a: number, i: any) => a + Number(i.net_weight ?? 0), 0);
   const holds = items.filter((i: any) => i.hold_flag).length;
   const poolFree = pool.filter((p: any) => !p.assigned_item_id).length;
-  const freeSlots = slots.filter((x: any) => !x.assigned_item_id).length;
   const sealed = ["sealed", "photography", "ready_to_export", "exported", "closed"].includes(s.status);
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
@@ -76,10 +80,9 @@ function SublotPage() {
   };
 
   const checks = [
-    { ok: recon?.passed === true, label: "Reconciliation passed" },
+    { ok: recon?.passed === true || overrides.length > 0, label: "Reconciliation passed or overridden" },
     { ok: holds === 0, label: `No open holds (${holds})` },
     { ok: poolFree === 0, label: `HUID pool empty (${poolFree} left)` },
-    { ok: freeSlots >= items.length, label: `Enough tag slots (${freeSlots} for ${items.length})` },
   ];
 
   return (
@@ -95,18 +98,23 @@ function SublotPage() {
           {isMgr && s.status === "draft" && <Button className="h-12" disabled={!!busy} onClick={() => run("issue", async () => { const { error } = await db.from("sublots").update({ status: "issued" }).eq("id", id); if (error) throw error; toast.success("Issued — staff can now load trays"); })}>Issue to staff</Button>}
           {isMgr && s.status === "halted" && <Button variant="outline" onClick={() => run("reopen", () => rpc("manager_reopen_sublot", { p_sublot: id, p_status: "weighing" }))}>Reopen for weighing</Button>}
           {isMgr && s.status === "halted" && s.halt_reason === "bot_mismatch" && <Button variant="outline" onClick={() => run("reopen", () => rpc("manager_reopen_sublot", { p_sublot: id, p_status: "sealed" }))}>Clear halt (back to sealed)</Button>}
+          {isMgr && s.status === "halted" && s.halt_reason === "reconciliation_failed" && overrides.length === 0 && (
+            <Button variant="destructive" onClick={() => setOvOpen(true)}>Override variance…</Button>
+          )}
         </div>
       </div>
-      {s.tags_continued > 0 && (
-        <p className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm font-semibold text-destructive">{s.tags_continued} tag number{s.tags_continued === 1 ? " was" : "s were"} continued automatically beyond the imported list (marked "?" in Tag slots). The bot checks each one against the ERP.</p>
+      {overrides.length > 0 && (
+        <p className="mb-4 rounded-lg border-2 border-warning bg-warning/15 p-3 text-sm font-semibold">
+          VARIANCE OVERRIDDEN by {overrides[0].profiles?.name ?? "manager"} on {new Date(overrides[0].created_at).toLocaleString()} — “{overrides[0].reason}”
+        </p>
       )}
       {isMgr && s.status === "draft" && (
-        <p className="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">Draft — staff can't see this sublot yet. Import the tag slot list and HUID list, then tap <b>Issue to staff</b>. Staff then pick lot {lot.lot_no} on the Station screen.</p>
+        <p className="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">Draft — staff can't see this sublot yet. Import the HUID list, then tap <b>Issue to staff</b>. Staff then pick lot {lot.lot_no} on the Station screen.</p>
       )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-3 h-auto flex-wrap">
-          {["overview", "tag slots", "huids", "items", "photos", "seal & export"].map((t) => <TabsTrigger key={t} value={t} className="h-10 px-4 capitalize">{t}</TabsTrigger>)}
+          {["overview", "huids", "items", "photos", "seal & export"].map((t) => <TabsTrigger key={t} value={t} className="h-10 px-4 capitalize">{t}</TabsTrigger>)}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-3">
@@ -183,9 +191,6 @@ function SublotPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="tag slots">
-          <TagSlotPanel sublot={s} branch={lot.branches.branch_code} baseCode={s.product_types.base_code} declaredTags={target?.declared_tags} canEdit={isMgr && !sealed} onDone={refetch} />
-        </TabsContent>
         <TabsContent value="huids">
           <HuidPanel sublot={s} expectedPieces={target?.declared_pieces} canEdit={isMgr && !sealed} onDone={refetch} />
           <p className="mt-2 text-xs text-muted-foreground">The pool should hold exactly one HUID per declared piece.</p>
@@ -197,12 +202,12 @@ function SublotPage() {
           {!sealed && (
             <Box title="Seal preconditions">
               <ul className="space-y-1">{checks.map((c) => <li key={c.label} className={c.ok ? "text-success" : "font-semibold text-destructive"}>{c.ok ? "✓" : "✗"} {c.label}</li>)}</ul>
-              <p className="text-xs text-muted-foreground">Sealing normally happens automatically when reconciliation passes. Use this only to recover a sublot that is halted or waiting to seal.</p>
+              <p className="text-xs text-muted-foreground">Sealing normally happens automatically when reconciliation passes. Use this only to recover a sublot that is halted or waiting to seal. Tag numbers come from the bot, not from an imported list.</p>
               {isMgr && ["ready_to_seal", "halted"].includes(s.status) && (
                 <Button className="h-14 w-full text-lg" disabled={!!busy || !checks.every((c) => c.ok)} onClick={() => {
-                  if (!confirm("Seal? Tag numbers will be assigned, the sublot locked and sent to photography.")) return;
-                  void run("seal", async () => { const n = await rpc<number>("seal_sublot", { p_sublot: id }); toast.success(`Sealed: ${n} tags assigned — now in photography`); });
-                }}>Seal & assign tag slots</Button>
+                  if (!confirm("Seal? The sublot is locked and sent to the bot for tagging.")) return;
+                  void run("seal", async () => { const n = await rpc<number>("seal_sublot", { p_sublot: id }); toast.success(`Sealed: ${n} items queued for tagging`); });
+                }}>Seal & send to tagging</Button>
               )}
             </Box>
           )}
@@ -231,14 +236,46 @@ function SublotPage() {
             </Box>
           )}
           {data.botResults.length > 0 && (
-            <Box title="Bot results">
+            <Box title="Bot-reported tag numbers">
               <table className="num w-full text-sm"><tbody>{data.botResults.map((b: any) => (
-                <tr key={b.id} className={b.mismatch || b.status === "failed" ? "text-destructive font-bold" : ""}><td>#{b.sequence}</td><td>exp {b.expected_ser_no}</td><td>got {b.actual_ser_no ?? "—"}</td><td>{b.status}</td><td className="font-sans">{b.error_message}</td></tr>
+                <tr key={b.id} className={b.mismatch || b.status === "failed" ? "text-destructive font-bold" : ""}><td>#{b.sequence}</td><td>tag {b.actual_ser_no ?? b.expected_ser_no ?? "—"}</td><td>{b.status}</td><td className="font-sans">{b.error_message}</td></tr>
               ))}</tbody></table>
             </Box>
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={ovOpen} onOpenChange={(o) => { if (!o) { setOvOpen(false); setOvReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Override the failed reconciliation?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              The sublot is released to tagging even though the numbers don't match. This is recorded permanently with your name and can never be edited or deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {target && recon && (
+            <table className="num w-full text-sm">
+              <thead className="font-sans text-left text-xs text-muted-foreground"><tr><th className="p-1" /><th>Declared</th><th>Entered</th></tr></thead>
+              <tbody>
+                <tr className="border-t"><td className="p-1 font-sans font-semibold">Tags</td><td>{target.declared_tags - target.removed_tags}</td><td>{recon.entered_tags}</td></tr>
+                <tr className="border-t"><td className="p-1 font-sans font-semibold">Pieces</td><td>{target.declared_pieces - target.removed_pieces}</td><td>{recon.entered_pcs}</td></tr>
+                <tr className="border-t"><td className="p-1 font-sans font-semibold">Net weight</td><td>{fmt3(Number(target.declared_net_weight) - Number(target.removed_net_weight))}</td><td>{fmt3(recon.entered_net)}</td></tr>
+              </tbody>
+            </table>
+          )}
+          <Textarea autoFocus className="min-h-20" placeholder="Reason (at least 10 characters) — e.g. packet short by one piece, vendor informed on 12 Oct" value={ovReason} onChange={(e) => setOvReason(e.target.value)} />
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-12">Cancel</AlertDialogCancel>
+            <Button variant="destructive" className="h-12" disabled={ovReason.trim().length < 10 || !!busy} onClick={() => {
+              void run("override", async () => {
+                await rpc("override_variance", { p_sublot: id, p_reason: ovReason.trim() });
+                toast.success("Variance overridden — sublot released to tagging");
+                setOvOpen(false); setOvReason("");
+              });
+            }}>Override & release</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
