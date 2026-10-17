@@ -101,6 +101,7 @@ function LotDetail() {
               <span className="text-lg font-extrabold">#{s.sublot_no}</span>
               <span className="font-semibold">{s.product_types.base_code} · {s.product_types.name}</span>
               <StatusBadge status={s.status} />
+              {s.lot_type === "coins" && <span className="rounded bg-muted px-2 py-0.5 text-xs font-bold">COINS</span>}
               {s.target && s.target.removed_tags > 0 && <span className="rounded bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">ITEMS REMOVED</span>}
               <ChevronRight className="ml-auto h-5 w-5" />
             </Link>
