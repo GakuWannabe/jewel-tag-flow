@@ -24,11 +24,11 @@ import { Route as AuthenticatedStationSessionIdRouteImport } from './routes/_aut
 import { Route as AuthenticatedManagerLotsIndexRouteImport } from './routes/_authenticated/manager/lots.index'
 import { Route as AuthenticatedManagerLotsLotIdRouteImport } from './routes/_authenticated/manager/lots.$lotId'
 import { Route as AuthenticatedManagerSublotIdRouteImport } from './routes/_authenticated/manager/sublot.$id'
+import { Route as ApiPublicBatchesOpenRouteImport } from './routes/api/public/batches/open'
 import { Route as ApiPublicPhotoQueueRouteImport } from './routes/api/public/photo/queue'
 import { Route as ApiPublicBatchesSublotIdItemsRouteImport } from './routes/api/public/batches/$sublotId/items'
 import { Route as ApiPublicBatchesSublotIdPhotosRouteImport } from './routes/api/public/batches/$sublotId/photos'
 import { Route as ApiPublicBatchesSublotIdSealRouteImport } from './routes/api/public/batches/$sublotId/seal'
-import { Route as ApiPublicBatchesSublotIdTagSlotsRouteImport } from './routes/api/public/batches/$sublotId/tag-slots'
 import { Route as ApiPublicPhotoSublotsSublotIdRouteImport } from './routes/api/public/photo/sublots/$sublotId'
 import { Route as ApiPublicBatchesSublotIdPhotosConfirmRouteImport } from './routes/api/public/batches/$sublotId/photos/confirm'
 import { Route as ApiPublicPhotoSublotsSublotIdCompleteRouteImport } from './routes/api/public/photo/sublots/$sublotId/complete'
@@ -120,6 +120,11 @@ const AuthenticatedManagerSublotIdRoute =
     path: '/sublot/$id',
     getParentRoute: () => AuthenticatedManagerRouteRoute,
   } as any)
+const ApiPublicBatchesOpenRoute = ApiPublicBatchesOpenRouteImport.update({
+  id: '/api/public/batches/open',
+  path: '/api/public/batches/open',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPhotoQueueRoute = ApiPublicPhotoQueueRouteImport.update({
   id: '/api/public/photo/queue',
   path: '/api/public/photo/queue',
@@ -141,12 +146,6 @@ const ApiPublicBatchesSublotIdSealRoute =
   ApiPublicBatchesSublotIdSealRouteImport.update({
     id: '/api/public/batches/$sublotId/seal',
     path: '/api/public/batches/$sublotId/seal',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicBatchesSublotIdTagSlotsRoute =
-  ApiPublicBatchesSublotIdTagSlotsRouteImport.update({
-    id: '/api/public/batches/$sublotId/tag-slots',
-    path: '/api/public/batches/$sublotId/tag-slots',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicPhotoSublotsSublotIdRoute =
@@ -200,12 +199,12 @@ export interface FileRoutesByFullPath {
   '/station/': typeof AuthenticatedStationIndexRoute
   '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/open': typeof ApiPublicBatchesOpenRoute
   '/api/public/photo/queue': typeof ApiPublicPhotoQueueRoute
   '/manager/lots/': typeof AuthenticatedManagerLotsIndexRoute
   '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
   '/api/public/batches/$sublotId/photos': typeof ApiPublicBatchesSublotIdPhotosRouteWithChildren
   '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
-  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
   '/api/public/photo/sublots/$sublotId': typeof ApiPublicPhotoSublotsSublotIdRouteWithChildren
   '/api/public/batches/$sublotId/photos/confirm': typeof ApiPublicBatchesSublotIdPhotosConfirmRoute
   '/api/public/photo/sublots/$sublotId/complete': typeof ApiPublicPhotoSublotsSublotIdCompleteRoute
@@ -227,12 +226,12 @@ export interface FileRoutesByTo {
   '/station': typeof AuthenticatedStationIndexRoute
   '/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/open': typeof ApiPublicBatchesOpenRoute
   '/api/public/photo/queue': typeof ApiPublicPhotoQueueRoute
   '/manager/lots': typeof AuthenticatedManagerLotsIndexRoute
   '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
   '/api/public/batches/$sublotId/photos': typeof ApiPublicBatchesSublotIdPhotosRouteWithChildren
   '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
-  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
   '/api/public/photo/sublots/$sublotId': typeof ApiPublicPhotoSublotsSublotIdRouteWithChildren
   '/api/public/batches/$sublotId/photos/confirm': typeof ApiPublicBatchesSublotIdPhotosConfirmRoute
   '/api/public/photo/sublots/$sublotId/complete': typeof ApiPublicPhotoSublotsSublotIdCompleteRoute
@@ -256,12 +255,12 @@ export interface FileRoutesById {
   '/_authenticated/station/': typeof AuthenticatedStationIndexRoute
   '/_authenticated/manager/lots/$lotId': typeof AuthenticatedManagerLotsLotIdRoute
   '/_authenticated/manager/sublot/$id': typeof AuthenticatedManagerSublotIdRoute
+  '/api/public/batches/open': typeof ApiPublicBatchesOpenRoute
   '/api/public/photo/queue': typeof ApiPublicPhotoQueueRoute
   '/_authenticated/manager/lots/': typeof AuthenticatedManagerLotsIndexRoute
   '/api/public/batches/$sublotId/items': typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
   '/api/public/batches/$sublotId/photos': typeof ApiPublicBatchesSublotIdPhotosRouteWithChildren
   '/api/public/batches/$sublotId/seal': typeof ApiPublicBatchesSublotIdSealRoute
-  '/api/public/batches/$sublotId/tag-slots': typeof ApiPublicBatchesSublotIdTagSlotsRoute
   '/api/public/photo/sublots/$sublotId': typeof ApiPublicPhotoSublotsSublotIdRouteWithChildren
   '/api/public/batches/$sublotId/photos/confirm': typeof ApiPublicBatchesSublotIdPhotosConfirmRoute
   '/api/public/photo/sublots/$sublotId/complete': typeof ApiPublicPhotoSublotsSublotIdCompleteRoute
@@ -285,12 +284,12 @@ export interface FileRouteTypes {
     | '/station/'
     | '/manager/lots/$lotId'
     | '/manager/sublot/$id'
+    | '/api/public/batches/open'
     | '/api/public/photo/queue'
     | '/manager/lots/'
     | '/api/public/batches/$sublotId/items'
     | '/api/public/batches/$sublotId/photos'
     | '/api/public/batches/$sublotId/seal'
-    | '/api/public/batches/$sublotId/tag-slots'
     | '/api/public/photo/sublots/$sublotId'
     | '/api/public/batches/$sublotId/photos/confirm'
     | '/api/public/photo/sublots/$sublotId/complete'
@@ -312,12 +311,12 @@ export interface FileRouteTypes {
     | '/station'
     | '/manager/lots/$lotId'
     | '/manager/sublot/$id'
+    | '/api/public/batches/open'
     | '/api/public/photo/queue'
     | '/manager/lots'
     | '/api/public/batches/$sublotId/items'
     | '/api/public/batches/$sublotId/photos'
     | '/api/public/batches/$sublotId/seal'
-    | '/api/public/batches/$sublotId/tag-slots'
     | '/api/public/photo/sublots/$sublotId'
     | '/api/public/batches/$sublotId/photos/confirm'
     | '/api/public/photo/sublots/$sublotId/complete'
@@ -340,12 +339,12 @@ export interface FileRouteTypes {
     | '/_authenticated/station/'
     | '/_authenticated/manager/lots/$lotId'
     | '/_authenticated/manager/sublot/$id'
+    | '/api/public/batches/open'
     | '/api/public/photo/queue'
     | '/_authenticated/manager/lots/'
     | '/api/public/batches/$sublotId/items'
     | '/api/public/batches/$sublotId/photos'
     | '/api/public/batches/$sublotId/seal'
-    | '/api/public/batches/$sublotId/tag-slots'
     | '/api/public/photo/sublots/$sublotId'
     | '/api/public/batches/$sublotId/photos/confirm'
     | '/api/public/photo/sublots/$sublotId/complete'
@@ -357,11 +356,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ApiPublicBatchesOpenRoute: typeof ApiPublicBatchesOpenRoute
   ApiPublicPhotoQueueRoute: typeof ApiPublicPhotoQueueRoute
   ApiPublicBatchesSublotIdItemsRoute: typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
   ApiPublicBatchesSublotIdPhotosRoute: typeof ApiPublicBatchesSublotIdPhotosRouteWithChildren
   ApiPublicBatchesSublotIdSealRoute: typeof ApiPublicBatchesSublotIdSealRoute
-  ApiPublicBatchesSublotIdTagSlotsRoute: typeof ApiPublicBatchesSublotIdTagSlotsRoute
   ApiPublicPhotoSublotsSublotIdRoute: typeof ApiPublicPhotoSublotsSublotIdRouteWithChildren
 }
 
@@ -472,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerSublotIdRouteImport
       parentRoute: typeof AuthenticatedManagerRouteRoute
     }
+    '/api/public/batches/open': {
+      id: '/api/public/batches/open'
+      path: '/api/public/batches/open'
+      fullPath: '/api/public/batches/open'
+      preLoaderRoute: typeof ApiPublicBatchesOpenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/photo/queue': {
       id: '/api/public/photo/queue'
       path: '/api/public/photo/queue'
@@ -498,13 +504,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/batches/$sublotId/seal'
       fullPath: '/api/public/batches/$sublotId/seal'
       preLoaderRoute: typeof ApiPublicBatchesSublotIdSealRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/batches/$sublotId/tag-slots': {
-      id: '/api/public/batches/$sublotId/tag-slots'
-      path: '/api/public/batches/$sublotId/tag-slots'
-      fullPath: '/api/public/batches/$sublotId/tag-slots'
-      preLoaderRoute: typeof ApiPublicBatchesSublotIdTagSlotsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/photo/sublots/$sublotId': {
@@ -653,13 +652,13 @@ const ApiPublicPhotoSublotsSublotIdRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ApiPublicBatchesOpenRoute: ApiPublicBatchesOpenRoute,
   ApiPublicPhotoQueueRoute: ApiPublicPhotoQueueRoute,
   ApiPublicBatchesSublotIdItemsRoute:
     ApiPublicBatchesSublotIdItemsRouteWithChildren,
   ApiPublicBatchesSublotIdPhotosRoute:
     ApiPublicBatchesSublotIdPhotosRouteWithChildren,
   ApiPublicBatchesSublotIdSealRoute: ApiPublicBatchesSublotIdSealRoute,
-  ApiPublicBatchesSublotIdTagSlotsRoute: ApiPublicBatchesSublotIdTagSlotsRoute,
   ApiPublicPhotoSublotsSublotIdRoute:
     ApiPublicPhotoSublotsSublotIdRouteWithChildren,
 }
