@@ -4,6 +4,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell, StatusBadge } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db, rpc, errMsg, fmt3 } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
@@ -232,14 +237,46 @@ function SublotPage() {
             </Box>
           )}
           {data.botResults.length > 0 && (
-            <Box title="Bot results">
+            <Box title="Bot-reported tag numbers">
               <table className="num w-full text-sm"><tbody>{data.botResults.map((b: any) => (
-                <tr key={b.id} className={b.mismatch || b.status === "failed" ? "text-destructive font-bold" : ""}><td>#{b.sequence}</td><td>exp {b.expected_ser_no}</td><td>got {b.actual_ser_no ?? "—"}</td><td>{b.status}</td><td className="font-sans">{b.error_message}</td></tr>
+                <tr key={b.id} className={b.mismatch || b.status === "failed" ? "text-destructive font-bold" : ""}><td>#{b.sequence}</td><td>tag {b.actual_ser_no ?? b.expected_ser_no ?? "—"}</td><td>{b.status}</td><td className="font-sans">{b.error_message}</td></tr>
               ))}</tbody></table>
             </Box>
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={ovOpen} onOpenChange={(o) => { if (!o) { setOvOpen(false); setOvReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Override the failed reconciliation?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              The sublot is released to tagging even though the numbers don't match. This is recorded permanently with your name and can never be edited or deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {target && recon && (
+            <table className="num w-full text-sm">
+              <thead className="font-sans text-left text-xs text-muted-foreground"><tr><th className="p-1" /><th>Declared</th><th>Entered</th></tr></thead>
+              <tbody>
+                <tr className="border-t"><td className="p-1 font-sans font-semibold">Tags</td><td>{target.declared_tags - target.removed_tags}</td><td>{recon.entered_tags}</td></tr>
+                <tr className="border-t"><td className="p-1 font-sans font-semibold">Pieces</td><td>{target.declared_pieces - target.removed_pieces}</td><td>{recon.entered_pcs}</td></tr>
+                <tr className="border-t"><td className="p-1 font-sans font-semibold">Net weight</td><td>{fmt3(Number(target.declared_net_weight) - Number(target.removed_net_weight))}</td><td>{fmt3(recon.entered_net)}</td></tr>
+              </tbody>
+            </table>
+          )}
+          <Textarea autoFocus className="min-h-20" placeholder="Reason (at least 10 characters) — e.g. packet short by one piece, vendor informed on 12 Oct" value={ovReason} onChange={(e) => setOvReason(e.target.value)} />
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-12">Cancel</AlertDialogCancel>
+            <Button variant="destructive" className="h-12" disabled={ovReason.trim().length < 10 || !!busy} onClick={() => {
+              void run("override", async () => {
+                await rpc("override_variance", { p_sublot: id, p_reason: ovReason.trim() });
+                toast.success("Variance overridden — sublot released to tagging");
+                setOvOpen(false); setOvReason("");
+              });
+            }}>Override & release</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
