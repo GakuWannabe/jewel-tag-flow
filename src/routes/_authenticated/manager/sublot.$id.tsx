@@ -12,7 +12,6 @@ import { buildManualZip, buildSheet, downloadBlob } from "@/lib/export";
 import { useServerFn } from "@tanstack/react-start";
 import { unsealSublot, photoLinks } from "@/lib/photos.functions";
 import { PhotoPanel } from "@/components/sublot/PhotoPanel";
-import { TagSlotPanel } from "@/components/sublot/TagSlotPanel";
 import { HuidPanel } from "@/components/sublot/HuidPanel";
 import { ItemsPanel } from "@/components/sublot/ItemsPanel";
 
@@ -35,22 +34,22 @@ function SublotPage() {
     queryKey: ["sublot-admin", id],
     queryFn: async () => {
       const { data: s } = await db.from("sublots").select("*, product_types(*), lots(*, branches(*), vendors(*))").eq("id", id).single();
-      const [t, r, pool, items, slots, photog, br, rm] = await Promise.all([
+      const [t, r, pool, items, photog, br, rm, ov] = await Promise.all([
         db.from("sublot_targets").select("*").eq("sublot_id", id).maybeSingle(),
         db.from("reconciliations").select("*").eq("sublot_id", id).order("created_at", { ascending: false }).limit(1),
         db.from("huid_pool").select("id,huid,assigned_item_id").eq("sublot_id", id).is("deleted_at", null),
-        db.from("items").select("id,pcs,net_weight,hold_flag,photo_url,gross_weight").eq("sublot_id", id).is("deleted_at", null),
-        db.from("tag_slots").select("id,assigned_item_id").eq("sublot_id", id).is("superseded_at", null),
+        db.from("items").select("id,pcs,net_weight,hold_flag,photo_url,gross_weight,ser_no,sequence").eq("sublot_id", id).is("deleted_at", null),
         db.from("user_roles").select("user_id, profiles:user_id(name)").eq("role", "photo"),
         db.from("bot_results").select("*").eq("sublot_id", id).order("created_at", { ascending: false }).limit(20),
         db.from("item_removals").select("*").eq("sublot_id", id).order("removed_at", { ascending: false }),
+        db.from("variance_overrides").select("*, profiles:overridden_by(name)").eq("sublot_id", id).order("created_at", { ascending: false }),
       ]);
       const removals = rm.data ?? [];
       const { data: voids } = await db.from("removal_voids").select("*").eq("sublot_id", id);
       const uids = [...new Set([...removals.map((x: any) => x.removed_by), ...(voids ?? []).map((v: any) => v.voided_by)])];
       const { data: profs } = uids.length ? await db.from("profiles").select("id,name").in("id", uids) : { data: [] };
       const nm = (u: string) => (profs ?? []).find((p: any) => p.id === u)?.name ?? "—";
-      return { s, target: t.data, recon: r.data?.[0], pool: pool.data ?? [], items: items.data ?? [], slots: slots.data ?? [], photographers: photog.data ?? [], botResults: br.data ?? [],
+      return { s, target: t.data, recon: r.data?.[0], pool: pool.data ?? [], items: items.data ?? [], overrides: ov.data ?? [], photographers: photog.data ?? [], botResults: br.data ?? [],
         removals: removals.map((x: any) => {
           const v = (voids ?? []).find((v: any) => v.removal_id === x.id);
           return { ...x, by: nm(x.removed_by), void: v ? { ...v, by: nm(v.voided_by) } : null };
