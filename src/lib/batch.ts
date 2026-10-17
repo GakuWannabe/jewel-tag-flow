@@ -6,8 +6,8 @@ export interface BotRow {
   gross_weight: number; less_weight: number; melting: number; wastage_pct: number; narration: string;
   pcs: number; making_value: number; making_type: string; purity_label: string; vendor_code: string; huids: string[];
   product_name: string; branch_name: string;
-  // verification only
-  sequence: number; compcode: string; type: string; ic: string; expected_ser_no: number;
+  // verification only — expected_ser_no is null until the bot reports the ERP number
+  sequence: number; compcode: string; type: string; ic: string; expected_ser_no: number | null;
   tray_code: string; compartment_no: number; photo_filename: string | null; has_photo: boolean;
 }
 
@@ -24,7 +24,6 @@ export async function loadBatch(client: any, sublotId: string) {
     .eq("sublot_id", sublotId)
     .is("deleted_at", null)
     .order("sequence", { ascending: true });
-  const { data: slots } = await client.from("tag_slots").select("*").eq("sublot_id", sublotId).not("assigned_item_id", "is", null);
   const lot = sublot.lots;
   // pricing lives on the sublot; older sublots fall back to the lot
   const pick = (k: string) => sublot[k] ?? lot[k];
@@ -59,7 +58,7 @@ export async function loadBatch(client: any, sublotId: string) {
       photo_filename: i.photo_filename ?? null,
       has_photo: !!i.photo_url,
     }));
-  return { sublot, lot, items: items ?? [], slots: slots ?? [], rows };
+  return { sublot, lot, items: items ?? [], rows };
 }
 
 /** Values for the configurable ERP-sheet mapping. */
