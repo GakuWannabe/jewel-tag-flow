@@ -57,7 +57,7 @@ function SublotPage() {
     },
   });
   if (!data?.s) return <AppShell title="Sublot" back="/manager/lots"><p>Loading…</p></AppShell>;
-  const { s, target, recon, pool, items, slots, removals } = data;
+  const { s, target, recon, pool, items, removals, overrides } = data;
   const lot = s.lots;
   const tt = target ? target.declared_tags - target.removed_tags : 0;
   const tp = target ? target.declared_pieces - target.removed_pieces : 0;
@@ -66,7 +66,6 @@ function SublotPage() {
   const enteredNet = items.reduce((a: number, i: any) => a + Number(i.net_weight ?? 0), 0);
   const holds = items.filter((i: any) => i.hold_flag).length;
   const poolFree = pool.filter((p: any) => !p.assigned_item_id).length;
-  const freeSlots = slots.filter((x: any) => !x.assigned_item_id).length;
   const sealed = ["sealed", "photography", "ready_to_export", "exported", "closed"].includes(s.status);
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
@@ -75,10 +74,9 @@ function SublotPage() {
   };
 
   const checks = [
-    { ok: recon?.passed === true, label: "Reconciliation passed" },
+    { ok: recon?.passed === true || overrides.length > 0, label: "Reconciliation passed or overridden" },
     { ok: holds === 0, label: `No open holds (${holds})` },
     { ok: poolFree === 0, label: `HUID pool empty (${poolFree} left)` },
-    { ok: freeSlots >= items.length, label: `Enough tag slots (${freeSlots} for ${items.length})` },
   ];
 
   return (
