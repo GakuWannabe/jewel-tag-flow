@@ -3,32 +3,28 @@ import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useStation } from "@/lib/station";
-import { LoadStep, WeighStep, MatchStep, FinishStep, huidsDone, type StepKey, type Snap } from "@/components/station/steps-tray";
-import { TagStep, HuidListStep } from "@/components/station/steps-input";
+import { LoadStep } from "@/components/station/steps/LoadStep";
+import { WeighStep } from "@/components/station/steps/WeighStep";
+import { FinishStep } from "@/components/station/steps/FinishStep";
+import { huidsDone, type StepKey, type Snap } from "@/components/station/steps/shared";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/station/$sessionId")({
-  head: () => ({ meta: [{ title: "Tray — Tagging Line" }, { name: "description", content: "Step by step: tag numbers, loading, weighing and HUIDs." }] }),
+  head: () => ({ meta: [{ title: "Tray — Tagging Line" }, { name: "description", content: "Step by step: loading, weighing and HUIDs." }] }),
   component: SessionScreen,
 });
 
 const STEPS: { key: StepKey; label: string }[] = [
-  { key: "tags", label: "Tag numbers" },
   { key: "load", label: "Load tray" },
-  { key: "weigh", label: "Weigh" },
-  { key: "huids", label: "HUID list" },
-  { key: "match", label: "Match HUIDs" },
+  { key: "weigh", label: "Weigh & HUIDs" },
   { key: "finish", label: "Finish" },
 ];
 
 function doneMap(s: Snap): Record<StepKey, boolean> {
   const n = s.items.length;
   return {
-    tags: s.tagNumbers.length > 0,
     load: n > 0,
-    weigh: n > 0 && s.items.every((i) => i.gross_weight != null),
-    huids: s.pool.length > 0,
-    match: n > 0 && s.items.every((i) => huidsDone(s, i)),
+    weigh: n > 0 && s.items.every((i) => i.gross_weight != null && huidsDone(s, i)),
     finish: !["empty", "loaded"].includes(s.session.status),
   };
 }
@@ -58,6 +54,11 @@ function SessionScreen() {
     <AppShell title={`${snap.sublot.lot_no} #${snap.sublot.sublot_no} · Tray ${snap.tray.tray_code}`} back="/station">
       {locked && <div className="mb-3 rounded-lg bg-destructive p-4 text-center text-lg font-bold text-destructive-foreground">{snap.sublot.status === "halted" ? "Reconciliation failed — call manager." : `Sublot is ${snap.sublot.status.replace(/_/g, " ")} — read only.`}</div>}
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="num rounded-lg bg-card px-3 py-2 text-lg font-bold">{snap.loadedCount} loaded</span>
+        <span className="num rounded-lg bg-card px-3 py-2 text-lg font-bold">{snap.totalWeight.toFixed(3)} g total</span>
+      </div>
+
       <nav className="-mx-3 mb-4 overflow-x-auto px-3 sm:mx-0 sm:px-0">
         <ol className="flex min-w-max gap-2">
           {STEPS.map((s, i) => (
@@ -79,11 +80,8 @@ function SessionScreen() {
       <h2 className="mb-3 text-2xl font-extrabold">Step {idx + 1}: {STEPS[idx].label}</h2>
       <p className="mb-3 text-sm text-muted-foreground">{snap.sublot.product_name} ({snap.sublot.branch_code}{snap.sublot.base_code}) · changes by other staff on this sublot appear live.</p>
 
-      {step === "tags" && <TagStep {...props} />}
       {step === "load" && <LoadStep {...props} />}
       {step === "weigh" && <WeighStep {...props} />}
-      {step === "huids" && <HuidListStep {...props} />}
-      {step === "match" && <MatchStep {...props} />}
       {step === "finish" && <FinishStep {...props} />}
     </AppShell>
   );
