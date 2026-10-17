@@ -28,6 +28,8 @@ function SublotPage() {
   const [busy, setBusy] = useState("");
   const [tab, setTab] = useState("overview");
   const [copied, setCopied] = useState(false);
+  const [ovOpen, setOvOpen] = useState(false);
+  const [ovReason, setOvReason] = useState("");
   const unseal = useServerFn(unsealSublot);
   const links = useServerFn(photoLinks);
   const { data, refetch } = useQuery({
@@ -92,13 +94,18 @@ function SublotPage() {
           {isMgr && s.status === "draft" && <Button className="h-12" disabled={!!busy} onClick={() => run("issue", async () => { const { error } = await db.from("sublots").update({ status: "issued" }).eq("id", id); if (error) throw error; toast.success("Issued — staff can now load trays"); })}>Issue to staff</Button>}
           {isMgr && s.status === "halted" && <Button variant="outline" onClick={() => run("reopen", () => rpc("manager_reopen_sublot", { p_sublot: id, p_status: "weighing" }))}>Reopen for weighing</Button>}
           {isMgr && s.status === "halted" && s.halt_reason === "bot_mismatch" && <Button variant="outline" onClick={() => run("reopen", () => rpc("manager_reopen_sublot", { p_sublot: id, p_status: "sealed" }))}>Clear halt (back to sealed)</Button>}
+          {isMgr && s.status === "halted" && s.halt_reason === "reconciliation_failed" && overrides.length === 0 && (
+            <Button variant="destructive" onClick={() => setOvOpen(true)}>Override variance…</Button>
+          )}
         </div>
       </div>
-      {s.tags_continued > 0 && (
-        <p className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm font-semibold text-destructive">{s.tags_continued} tag number{s.tags_continued === 1 ? " was" : "s were"} continued automatically beyond the imported list (marked "?" in Tag slots). The bot checks each one against the ERP.</p>
+      {overrides.length > 0 && (
+        <p className="mb-4 rounded-lg border-2 border-warning bg-warning/15 p-3 text-sm font-semibold">
+          VARIANCE OVERRIDDEN by {overrides[0].profiles?.name ?? "manager"} on {new Date(overrides[0].created_at).toLocaleString()} — “{overrides[0].reason}”
+        </p>
       )}
       {isMgr && s.status === "draft" && (
-        <p className="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">Draft — staff can't see this sublot yet. Import the tag slot list and HUID list, then tap <b>Issue to staff</b>. Staff then pick lot {lot.lot_no} on the Station screen.</p>
+        <p className="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">Draft — staff can't see this sublot yet. Import the HUID list, then tap <b>Issue to staff</b>. Staff then pick lot {lot.lot_no} on the Station screen.</p>
       )}
 
       <Tabs value={tab} onValueChange={setTab}>
