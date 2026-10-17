@@ -235,13 +235,32 @@ function SublotForm({ m: m0, lot, lotId, subs, remaining, onClose, onSaved }: {
         <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-2 hover:bg-accent"><X className="h-6 w-6" /></button>
       </div>
 
-      {Section({ i: 0, title: "What product?", hint: "One product type per sublot", children: (
+      {Section({ i: 0, title: "What product?", hint: "Sublots in one lot can be different products", children: (
         m.productTypes.length === 0 ? <p className="text-destructive">Branch {lot?.branches?.branch_code} · {lot?.branches?.branch_name} has no product types yet. Add them in Master data first.</p> :
-        <Choice value={f.product_type_id} onChange={(v) => set({ product_type_id: v })}
-          options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, sub: `${(p.allowed_pcs ?? [p.default_pcs]).join(" / ")} piece(s) per tag` }))} />
+        <>
+          <Field label="Kind">
+            <Choice value={f.lot_type} onChange={(v) => set({ lot_type: v })}
+              options={[{ v: "tray", label: "Tray", sub: "Jewellery — weighed & photographed" }, { v: "coins", label: "Coins", sub: "Identical pieces — straight to tagging" }]} />
+          </Field>
+          {m.productTypes.length > 8
+            ? <SearchPick value={f.product_type_id} onChange={(v) => set({ product_type_id: v })} placeholder="Choose product…"
+                options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, search: `${p.base_code} ${p.name}` }))} />
+            : <Choice value={f.product_type_id} onChange={(v) => set({ product_type_id: v })}
+                options={m.productTypes.map((p: any) => ({ v: p.id, label: `${p.base_code} · ${p.name}`, sub: `${(p.allowed_pcs ?? [p.default_pcs]).join(" / ")} piece(s) per tag` }))} />}
+        </>
       ) })}
 
-      {Section({ i: 1, title: "How many, how heavy?", children: (
+      {Section({ i: 1, title: "How many, how heavy?", children: isCoins ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="How many coins?" hint="Every coin is identical">
+            <Input className="num h-14 text-xl" inputMode="numeric" value={f.qty ?? ""} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, "") })} placeholder="0" />
+          </Field>
+          <Field label="Weight of one coin (g)" hint="All coins get this exact weight">
+            <Input className="num h-14 text-xl" inputMode="decimal" value={f.piece_weight ?? ""} onChange={(e) => setF({ ...f, piece_weight: e.target.value })} placeholder="0.000" />
+          </Field>
+          {remaining && <p className="num text-xs text-muted-foreground sm:col-span-2">Left in this lot: {remaining.pcs} pieces · {fmt3(remaining.net)} g net</p>}
+        </div>
+      ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Tags (compartments)" hint="How many price tags / tray spots">
