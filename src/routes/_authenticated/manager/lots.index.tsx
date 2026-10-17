@@ -137,8 +137,8 @@ function Lots() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field n={1} label="Lot number" hint="Exactly as written on the packet">
-              <Input autoFocus className="num h-14 text-xl uppercase" value={f.lot_no ?? ""} onChange={(e) => setF({ ...f, lot_no: e.target.value })} placeholder="L2609047" />
+            <Field n={1} label="Lot number" hint="Given automatically — the next free number for the branch">
+              <div className="flex h-14 items-center rounded-md border bg-muted px-3 text-lg font-semibold text-muted-foreground">Assigned on save</div>
             </Field>
             <Field n={2} label="Received on">
               <Input type="date" className="h-14 text-lg" value={f.received_date} onChange={(e) => setF({ ...f, received_date: e.target.value })} />
@@ -168,8 +168,18 @@ function Lots() {
       )}
 
       {lots.length > 0 && !open && <p className="mb-2 text-sm text-muted-foreground">Tap a lot to add sublots and send them to staff.</p>}
+      {!open && (
+        <div className="mb-3 flex gap-2">
+          {(["open", "closed"] as const).map((k) => (
+            <button key={k} type="button" onClick={() => setShowClosed(k === "closed")}
+              className={cn("h-11 rounded-xl border-2 px-5 font-bold capitalize", (k === "closed") === showClosed ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground")}>
+              {k} ({lots.filter((l: any) => (k === "closed") === !!l.closed_at).length})
+            </button>
+          ))}
+        </div>
+      )}
       <div className="space-y-2">
-        {lots.map((l: any) => {
+        {lots.filter((l: any) => showClosed === !!l.closed_at).map((l: any) => {
           const t = data?.targets.find((x: any) => x.lot_id === l.id);
           return (
             <div key={l.id} className="flex items-stretch gap-2">
@@ -181,10 +191,16 @@ function Lots() {
                 <div className="ml-auto flex items-center gap-1 text-sm font-semibold">{l.sublots?.length ?? 0} sublot{l.sublots?.length === 1 ? "" : "s"}<ChevronRight className="h-5 w-5" /></div>
               </Link>
               {isMgr && (
-                <button type="button" aria-label={`Delete lot ${l.lot_no}`} onClick={() => { setDel(l); setTyped(""); }}
-                  className="flex w-14 items-center justify-center rounded-xl border-2 bg-card text-destructive hover:bg-destructive hover:text-destructive-foreground">
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                <div className="flex flex-col gap-1">
+                  <button type="button" onClick={() => toggleClosed(l)}
+                    className="flex h-1/2 flex-1 items-center justify-center rounded-xl border-2 bg-card px-2 text-xs font-bold text-muted-foreground hover:border-primary">
+                    {l.closed_at ? "Reopen" : "Close"}
+                  </button>
+                  <button type="button" aria-label={`Delete lot ${l.lot_no}`} onClick={() => { setDel(l); setTyped(""); }}
+                    className="flex h-1/2 flex-1 items-center justify-center rounded-xl border-2 bg-card px-2 text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               )}
             </div>
           );
