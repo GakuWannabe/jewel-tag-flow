@@ -56,7 +56,7 @@ function SessionPass({ sessionId, requestedStep }: { sessionId: string; requeste
   useEffect(() => { if (requestedStep) setStep(requestedStep); }, [requestedStep]);
 
   if (error && !snap) return <AppShell title="Tray" back="/station"><p className="text-destructive">{error}</p></AppShell>;
-  if (!currentSnap || !step) return <AppShell title="Tray" back="/station"><p>Loading…</p></AppShell>;
+  if (!snap || !currentSnap || !step) return <AppShell title="Tray" back="/station"><p>Loading…</p></AppShell>;
 
   const locked = !["issued", "loading", "weighing"].includes(snap.sublot.status);
   const done = doneMap(snap);

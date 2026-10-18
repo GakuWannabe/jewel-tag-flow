@@ -10,7 +10,7 @@ import { enqueue, snapGet, snapSet } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/station/")({
-  head: () => ({ meta: [{ title: "Tray station — Tagging Line" }, { name: "description", content: "Pick the packet and tray." }] }),
+  head: () => ({ meta: [{ title: "Tray station — Tagging Line" }, { name: "description", content: "Pick the packet and tray." }, { property: "og:title", content: "Tray station — Tagging Line" }, { property: "og:description", content: "Choose trays for jewellery packet work." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   validateSearch: (s: Record<string, unknown>): { sublot?: string } => (typeof s.sublot === "string" ? { sublot: s.sublot } : {}),
   component: StationPick,
 });

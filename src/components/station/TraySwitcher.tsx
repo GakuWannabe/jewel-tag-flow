@@ -47,7 +47,7 @@ export function useTraySessions(snap: Snap) {
       if (!a.p_occupied && existing?.gross_weight == null) rows = rows.filter((i) => i !== existing);
     }
   }
-  const sessions = (query.data?.sessions ?? []).map((s: any) => {
+  const sessions: { id: string; code: string; status: string; total: number; weighed: number; matched: number; finished: boolean }[] = (query.data?.sessions ?? []).map((s: any) => {
     const own = s.id === snap.session.id;
     const items = own ? snap.items : rows.filter((i) => i.tray_session_id === s.id);
     const status = own ? snap.session.status : statuses.get(s.id) ?? s.status;

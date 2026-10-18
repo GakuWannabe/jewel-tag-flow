@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Keypad } from "../Keypad";
 import { Legend } from "../TrayGrid";
 import { TraySwitcher } from "../TraySwitcher";
-import { fmt3 } from "@/lib/db";
+import { fmt3, errMsg } from "@/lib/db";
 import { HOLD_LABEL, type HoldFlag, type Item } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { pad, sortedItems, Grid, type StepProps, type Snap, type Station } from "./shared";
@@ -26,7 +26,7 @@ export function WeighStep({ snap, run, locked, go }: StepProps) {
 
 
   const weighed = items.filter((i) => i.gross_weight != null).length;
-  const allDone = weighed === items.length;
+  const allDone = items.length > 0 && weighed === items.length;
   const next = (after: number) =>
     (items.find((i) => i.compartment_no > after && (i.gross_weight == null))
       ?? items.find((i) => i.compartment_no !== after && i.gross_weight == null))?.compartment_no ?? null;
@@ -95,7 +95,7 @@ function CompartmentPanel({ item, snap, locked, run, carryNarr, onDone }: { item
     await run("save_weight", { p_item: item.id, p_gross: g, p_less: l, p_pcs: pcs, p_narration: narr.trim().toUpperCase() }, `Weight ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
     toast.success(`${snap.tray.tray_code}-${pad(item.compartment_no)} saved`);
     onDone(narr.trim().toUpperCase());
-    } finally { setSaving(false); }
+    } catch (e) { toast.error(errMsg(e)); } finally { setSaving(false); }
   };
   const wField = (k: "gross" | "less", label: string, v: string) => (
     <label className={cn("flex-1 rounded-lg border-4 p-2 text-left", field === k ? "border-ring bg-accent/30" : "border-border bg-card")}>
@@ -166,7 +166,6 @@ function CompartmentPanel({ item, snap, locked, run, carryNarr, onDone }: { item
           </details>
         </>
       )}
-      {(saved || ownSaved) && <HuidPicker item={{ ...item, pcs: pcs ?? item.pcs, net_weight: net }} snap={snap} locked={locked} run={run} carryNarr={carryNarr} onDone={onDone} />}
     </div>
   );
 }
