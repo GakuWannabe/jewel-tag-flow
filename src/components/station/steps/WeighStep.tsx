@@ -7,6 +7,7 @@ import { Keypad } from "../Keypad";
 import { Legend } from "../TrayGrid";
 import { TraySwitcher } from "../TraySwitcher";
 import { fmt3, errMsg } from "@/lib/db";
+import { useSync } from "@/lib/offline";
 import { HOLD_LABEL, type HoldFlag, type Item } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { pad, sortedItems, Grid, type StepProps, type Snap, type Station } from "./shared";
@@ -32,8 +33,10 @@ export function WeighStep({ snap, run, locked, go }: StepProps) {
       ?? items.find((i) => i.compartment_no !== after && i.gross_weight == null))?.compartment_no ?? null;
   const item = sel != null ? byComp.get(sel) : undefined;
   const lastNarr = useRef<string | null>(null);
+  const { queue } = useSync();
+  const queuedWeight = [...queue].reverse().find((op) => op.fn === "save_weight" && items.some((i) => i.id === op.args.p_item));
   const latest = [...items].filter((i) => i.gross_weight != null).sort((a, b) => (b.weighed_at ?? "").localeCompare(a.weighed_at ?? ""))[0];
-  const carryNarr = lastNarr.current ?? latest?.narration ?? "";
+  const carryNarr = typeof queuedWeight?.args.p_narration === "string" ? queuedWeight.args.p_narration : lastNarr.current ?? latest?.narration ?? "";
 
   return (
     <div className="space-y-4">

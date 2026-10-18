@@ -96,6 +96,7 @@ function HuidPicker({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
   const [picked, setPicked] = useState<string[]>(current);
   const [q, setQ] = useState("");
   const [manual, setManual] = useState("");
+  const committing = useRef(false);
   const free = useMemo(() => snap.pool.filter((p) => !p.assigned_item_id), [snap.pool]);
   const online = status !== "offline";
   const [suggestions, setSuggestions] = useState<string[][]>([]);
@@ -120,12 +121,16 @@ function HuidPicker({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
   }, [found, free, q, picked]);
 
   const commit = async (h: string[]) => {
+    if (locked || committing.current || h.length !== item.pcs || new Set(h).size !== h.length) return;
+    committing.current = true;
+    try {
     await run("assign_item_huids", { p_item: item.id, p_huids: h }, `HUID ${snap.tray.tray_code}-${item.compartment_no}`, item.id);
     toast.success(`${snap.tray.tray_code}-${pad(item.compartment_no)} → ${h.join(", ")}`);
     onDone();
+    } catch (e) { toast.error(errMsg(e)); } finally { committing.current = false; }
   };
   const pick = (h: string) => {
-    if (locked) return;
+    if (locked || committing.current || picked.includes(h)) return;
     const nextP = [...picked, h];
     if (nextP.length >= item.pcs) void commit(nextP.slice(0, item.pcs)); else setPicked(nextP);
   };
@@ -176,11 +181,11 @@ function HuidPicker({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
           </div>
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
       <section className="space-y-2">
       <h3 className="font-bold">Search / pick from pool</h3>
       <Input className="num h-12 text-lg uppercase" placeholder="Search HUID (type any part)" value={q} onChange={(e) => setQ(e.target.value.toUpperCase())} />
-      <div className="grid max-h-[22rem] grid-cols-2 gap-2 overflow-auto sm:grid-cols-3">
+      <div className="grid max-h-[22rem] gap-2 overflow-auto xl:grid-cols-2">
         {list.map((h) => (
           <button key={h} type="button" disabled={locked} onClick={() => pick(h)}
             className="num flex flex-col items-start rounded-lg border-2 bg-background p-2 text-left active:bg-accent">
@@ -192,8 +197,8 @@ function HuidPicker({ item, snap, locked, run, onDone }: { item: Item; snap: Sna
       </section>
       <section className="space-y-2">
         <h3 className="font-bold">Type HUID directly</h3>
-        <div className="flex gap-2">
-          <Input className="num h-12 uppercase" maxLength={6} placeholder="ABC123" disabled={locked} value={manual} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void addManual(); } }} onChange={(e) => setManual(e.target.value.toUpperCase())} />
+        <div className="flex flex-wrap gap-2">
+          <Input className="num h-12 min-w-0 uppercase" maxLength={6} placeholder="ABC123" disabled={locked} value={manual} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void addManual(); } }} onChange={(e) => setManual(e.target.value.toUpperCase())} />
           <Button className="h-12" variant="outline" disabled={locked || !manual.trim()} onClick={() => void addManual()}>Add</Button>
         </div>
       </section>
