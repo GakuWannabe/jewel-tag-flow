@@ -1,0 +1,3 @@
+- [ ] Correct free-tray suggestions and expose manual selection.
+- [ ] Separate weighing and HUID passes; add tray switching and bulk review.
+- [ ] Correct finish navigation and verify requested flows.
