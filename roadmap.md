@@ -1,3 +1,3 @@
-- [ ] Correct free-tray suggestions and expose manual selection.
-- [ ] Separate weighing and HUID passes; add tray switching and bulk review.
-- [ ] Correct finish navigation and verify requested flows.
+- [x] Correct free-tray suggestions and expose manual selection.
+- [x] Separate weighing and HUID passes; add tray switching and bulk review.
+- [x] Correct finish navigation; verify signed-in switching, weight readback, bulk assignment readback, and completed-tray close label; nine tests passed.
