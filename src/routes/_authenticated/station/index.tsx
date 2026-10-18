@@ -10,23 +10,23 @@ import { enqueue, snapGet, snapSet } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/station/")({
-  head: () => ({ meta: [{ title: "Tray station — Tagging Line" }, { name: "description", content: "Pick the packet and tray." }] }),
+  head: () => ({ meta: [{ title: "Tray station — Tagging Line" }, { name: "description", content: "Pick the packet and tray." }, { property: "og:title", content: "Tray station — Tagging Line" }, { property: "og:description", content: "Choose trays for jewellery packet work." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   validateSearch: (s: Record<string, unknown>): { sublot?: string } => (typeof s.sublot === "string" ? { sublot: s.sublot } : {}),
   component: StationPick,
 });
 
-/** Greedy tray suggestion: largest trays first, smallest for the remainder. */
-function suggestTrays(trays: any[], pieces: number): { tray: any; count: number }[] {
+/** Use each free physical tray at most once; prefer a single fitting tray. */
+export function suggestTrays(trays: any[], pieces: number): { tray: any; count: number }[] {
   const byCap = [...trays].sort((a, b) => b.compartment_count - a.compartment_count);
   const out: { tray: any; count: number }[] = [];
   let left = pieces;
   while (left > 0 && byCap.length) {
-    const tray = left >= byCap[byCap.length - 1].compartment_count
-      ? byCap.find((t) => t.compartment_count <= left) ?? byCap[byCap.length - 1]
-      : byCap[byCap.length - 1];
+    const fitting = [...byCap].reverse().find((t) => t.compartment_count >= left);
+    const tray = fitting ?? byCap[0];
+    if (!tray) break;
     const count = Math.min(left, tray.compartment_count);
-    const ex = out.find((o) => o.tray.id === tray.id);
-    if (ex && count === tray.compartment_count) ex.count += count; else out.push({ tray, count });
+    out.push({ tray, count });
+    byCap.splice(byCap.findIndex((t) => t.id === tray.id), 1);
     left -= count;
   }
   return out;
@@ -76,9 +76,16 @@ function StationPick() {
     setPlan(next);
   };
   const planned = (plan ?? []).reduce((a, p) => a + p.count, 0);
+  const suggested = new Set(suggestTrays(freeTrays, n).map((p) => p.tray.id));
+  const toggleTray = (tray: any) => {
+    if (busy || !plan) return;
+    if (plan.some((p) => p.tray.id === tray.id)) setPlan(plan.filter((p) => p.tray.id !== tray.id));
+    else setPlan([...plan, { tray, count: Math.min(tray.compartment_count, Math.max(1, n - planned)) }]);
+  };
 
   const accept = async () => {
     if (!plan || planned !== n) return toast.error(`Plan covers ${planned} pieces but the packet has ${n} — adjust it`);
+    if (plan.some((p) => !freeTrays.some((t: any) => t.id === p.tray.id))) return toast.error("A selected tray is no longer free — choose another tray");
     setBusy(true);
     try {
       let first: string | null = null;
@@ -93,7 +100,7 @@ function StationPick() {
         })));
       }
       toast.success("Trays ready — check the loading on screen");
-      void nav({ to: "/station/$sessionId", params: { sessionId: first! } });
+      if (first) void nav({ to: "/station/$sessionId", params: { sessionId: first }, search: { step: "load" } });
     } catch (e) { toast.error(errMsg(e)); refetch(); } finally { setBusy(false); }
   };
 
@@ -159,12 +166,25 @@ function StationPick() {
                     <span className="text-3xl font-extrabold">{p.tray.tray_code}</span>
                     <span className="text-sm text-muted-foreground">{p.tray.rows}×{p.tray.columns}</span>
                     <div className="ml-auto flex items-center gap-2">
-                      <Button variant="outline" className="h-11 w-11 text-xl" onClick={() => adjust(i, -1)}>−</Button>
+                      <Button variant="outline" className="h-11 w-11 text-xl" disabled={busy} onClick={() => adjust(i, -1)}>−</Button>
                       <span className={cn("num w-16 text-center text-2xl font-bold", p.count !== p.tray.compartment_count && "text-warning")}>{p.count}</span>
-                      <Button variant="outline" className="h-11 w-11 text-xl" onClick={() => adjust(i, 1)}>+</Button>
+                      <Button variant="outline" className="h-11 w-11 text-xl" disabled={busy} onClick={() => adjust(i, 1)}>+</Button>
                     </div>
                   </div>
                 ))}
+                <div className="space-y-2">
+                  <h3 className="font-bold">Choose trays</h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {freeTrays.map((tray: any) => {
+                      const selected = plan.some((p) => p.tray.id === tray.id);
+                      return <Button key={tray.id} variant="outline" aria-pressed={selected} disabled={busy} onClick={() => toggleTray(tray)}
+                        className={cn("h-auto min-h-16 justify-between gap-2 whitespace-normal border-2 p-3 text-left text-lg", selected && "border-primary bg-accent")}>
+                        <span>{selected ? "✓ " : ""}{tray.tray_code} · {tray.compartment_count} compartments</span>
+                        {suggested.has(tray.id) && <span className="rounded bg-muted px-2 py-1 text-xs">Suggested</span>}
+                      </Button>;
+                    })}
+                  </div>
+                </div>
                 <p className={cn("num text-sm font-semibold", planned === n ? "text-success" : "text-destructive")}>
                   Plan covers {planned} of {n} pieces{planned !== n ? " — fix it with +/−" : " ✓"}
                 </p>

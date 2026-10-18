@@ -5,7 +5,7 @@ import { TrayGrid, type CellState } from "../TrayGrid";
 
 export type Station = ReturnType<typeof useStation>;
 export type Snap = NonNullable<Station["snap"]>;
-export type StepKey = "load" | "weigh" | "finish";
+export type StepKey = "load" | "weigh" | "huid" | "finish";
 export interface StepProps { snap: Snap; run: Station["run"]; refresh: Station["refresh"]; locked: boolean; go: (s: StepKey) => void }
 
 export const pad = (n: number) => String(n).padStart(2, "0");
