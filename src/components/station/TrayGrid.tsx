@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type CellState = "empty" | "loaded" | "weighed" | "huid" | "photo" | "hold";
@@ -26,7 +26,7 @@ export const STATE_LABEL: Record<CellState, string> = {
 export function TrayGrid({ rows, columns, trayCode, stateOf, selected, onTap, sub, editMode, onMove, tone }: {
   rows: number; columns: number; trayCode: string;
   stateOf: (n: number) => CellState; selected?: number | null; onTap: (n: number) => void;
-  sub?: (n: number) => string | null;
+  sub?: (n: number) => ReactNode;
   editMode?: boolean; onMove?: (from: number, to: number) => void;
   tone?: (n: number) => string | null;
 }) {
@@ -78,7 +78,7 @@ export function TrayGrid({ rows, columns, trayCode, stateOf, selected, onTap, su
               onPointerDown={(e) => down(n, e)}
               onPointerUp={(e) => up(n, e)}
               className={cn(
-                "relative flex min-h-16 select-none flex-col items-center justify-center rounded-lg border-2 border-border font-bold transition-transform active:scale-95",
+                "relative flex min-h-20 select-none flex-col items-center justify-center rounded-lg border-2 border-border font-bold transition-transform active:scale-95",
                 extra ?? TONE[st],
                 selected === n && "ring-4 ring-ring ring-offset-2",
                 editMode && st !== "empty" && "cursor-grab",
@@ -87,7 +87,7 @@ export function TrayGrid({ rows, columns, trayCode, stateOf, selected, onTap, su
               )}
             >
               <span className="num text-xl leading-none">{String(n).padStart(2, "0")}</span>
-              {sub?.(n) && <span className="num mt-0.5 text-[11px] font-semibold leading-none">{sub(n)}</span>}
+              {sub?.(n) && <div className="num mt-0.5 flex flex-col items-center gap-0.5 text-[11px] font-semibold leading-none">{sub(n)}</div>}
             </button>
           );
         })}
