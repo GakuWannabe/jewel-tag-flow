@@ -36,7 +36,7 @@ export function HuidStep({ snap, run, refresh, locked, go }: StepProps) {
         <p className="num text-lg font-bold">HUIDs {matched} / {items.length}</p>
         <Grid snap={snap} selected={sel} onTap={(n) => byComp.has(n) && setSel(n)}
           stateOf={(n) => { const i = byComp.get(n); return !i ? "empty" : i.hold_flag ? "hold" : huidsDone(snap, i) ? "huid" : "loaded"; }}
-          sub={(n) => { const i = byComp.get(n); return i ? (snap.itemHuids[i.id] ?? []).join(" ") || `${i.pcs} HUID${i.pcs === 1 ? "" : "s"}` : null; }} />
+          sub={(n) => { const i = byComp.get(n); if (!i) return null; const hs = (snap.itemHuids[i.id] ?? []).join(" ") || `${i.pcs} HUID${i.pcs === 1 ? "" : "s"}`; return (<><span className="max-w-full truncate">{hs}</span><span className="num max-w-full truncate text-[10px] font-medium text-muted-foreground">{i.net_weight != null ? fmt3(i.net_weight) : "-"}</span></>); }} />
         <Legend only={["loaded", "huid", "hold"]} />
         {items.length > 0 && matched === items.length && <Button className="h-16 w-full text-xl" onClick={() => go("finish")}>Next: Finish →</Button>}
       </div>
