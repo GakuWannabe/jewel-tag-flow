@@ -78,7 +78,7 @@ export function TrayGrid({ rows, columns, trayCode, stateOf, selected, onTap, su
               onPointerDown={(e) => down(n, e)}
               onPointerUp={(e) => up(n, e)}
               className={cn(
-                "relative flex min-h-16 select-none flex-col items-center justify-center rounded-lg border-2 border-border font-bold transition-transform active:scale-95",
+                "relative flex min-h-20 select-none flex-col items-center justify-center rounded-lg border-2 border-border font-bold transition-transform active:scale-95",
                 extra ?? TONE[st],
                 selected === n && "ring-4 ring-ring ring-offset-2",
                 editMode && st !== "empty" && "cursor-grab",
