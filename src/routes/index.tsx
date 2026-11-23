@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usernameToEmail, errMsg } from "@/lib/db";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 import { needsBootstrap, bootstrapManager } from "@/lib/users.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,12 +22,14 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>): { next?: string } => (typeof s["next"] === "string" ? { next: s["next"] } : {}),
   component: Login,
 });
 
 function Login() {
   const { session, ready } = useAuth();
   const nav = useNavigate();
+  const { next } = Route.useSearch();
   const check = useServerFn(needsBootstrap);
   const boot = useServerFn(bootstrapManager);
   const [setup, setSetup] = useState(false);
@@ -35,7 +38,10 @@ function Login() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { if (ready && session) void nav({ to: "/app" }); }, [ready, session, nav]);
+  useEffect(() => { if (!ready || !session) return;
+    const back = oauthReturnPath(next);
+    if (back !== "/") window.location.assign(back); else void nav({ to: "/app" });
+  }, [ready, session, nav, next]);
   useEffect(() => { check().then((r) => setSetup(r.needed)).catch(() => {}); }, [check]);
 
   const submit = async (e: React.FormEvent) => {

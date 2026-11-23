@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "sdk_version": "3.6.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://trkvqmexsddgakzuhqlu.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "tag-flow-pro",
+      "version": "0.1.0",
+      "title": "Tag Flow Pro"
+    },
+    "tools": [
+      {
+        "name": "list_lots",
+        "title": "List lots",
+        "description": "List recent lots (lot number, branch, received date, open/closed) visible to the signed-in user.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "closed",
+                "all"
+              ],
+              "default": "open",
+              "description": "Which lots to list."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Maximum lots to return."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_sublots",
+        "title": "List sublots",
+        "description": "List sublots with product and workflow status, optionally for one lot or one status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "lot_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Only sublots of this lot (id from list_lots)."
+            },
+            "status": {
+              "type": "string",
+              "maxLength": 40,
+              "description": "Only sublots in this status, e.g. open, photography, ready_to_export, halted."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "description": "Maximum sublots to return."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

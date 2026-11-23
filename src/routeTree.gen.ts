@@ -11,10 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedManagerRouteRouteImport } from './routes/_authenticated/manager/route'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedWipRouteImport } from './routes/_authenticated/wip'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedManagerActivityRouteImport } from './routes/_authenticated/manager/activity'
 import { Route as AuthenticatedManagerMasterRouteImport } from './routes/_authenticated/manager/master'
 import { Route as AuthenticatedManagerSettingsRouteImport } from './routes/_authenticated/manager/settings'
@@ -45,6 +48,17 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -65,6 +79,11 @@ const AuthenticatedWipRoute = AuthenticatedWipRouteImport.update({
   id: '/wip',
   path: '/wip',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedManagerActivityRoute =
   AuthenticatedManagerActivityRouteImport.update({
@@ -187,10 +206,13 @@ const ApiPublicPhotoSublotsSublotIdItemsSequenceSkipRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/mcp': typeof McpRoute
   '/manager': typeof AuthenticatedManagerRouteRouteWithChildren
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/app': typeof AuthenticatedAppRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/wip': typeof AuthenticatedWipRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/manager/activity': typeof AuthenticatedManagerActivityRoute
   '/manager/master': typeof AuthenticatedManagerMasterRoute
   '/manager/settings': typeof AuthenticatedManagerSettingsRoute
@@ -214,10 +236,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/mcp': typeof McpRoute
   '/manager': typeof AuthenticatedManagerRouteRouteWithChildren
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/app': typeof AuthenticatedAppRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/wip': typeof AuthenticatedWipRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/manager/activity': typeof AuthenticatedManagerActivityRoute
   '/manager/master': typeof AuthenticatedManagerMasterRoute
   '/manager/settings': typeof AuthenticatedManagerSettingsRoute
@@ -243,10 +268,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/mcp': typeof McpRoute
   '/_authenticated/manager': typeof AuthenticatedManagerRouteRouteWithChildren
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/wip': typeof AuthenticatedWipRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/manager/activity': typeof AuthenticatedManagerActivityRoute
   '/_authenticated/manager/master': typeof AuthenticatedManagerMasterRoute
   '/_authenticated/manager/settings': typeof AuthenticatedManagerSettingsRoute
@@ -272,10 +300,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/mcp'
     | '/manager'
+    | '/.well-known/oauth-protected-resource'
     | '/app'
     | '/reports'
     | '/wip'
+    | '/.lovable/oauth/consent'
     | '/manager/activity'
     | '/manager/master'
     | '/manager/settings'
@@ -299,10 +330,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/mcp'
     | '/manager'
+    | '/.well-known/oauth-protected-resource'
     | '/app'
     | '/reports'
     | '/wip'
+    | '/.lovable/oauth/consent'
     | '/manager/activity'
     | '/manager/master'
     | '/manager/settings'
@@ -327,10 +361,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/mcp'
     | '/_authenticated/manager'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/app'
     | '/_authenticated/reports'
     | '/_authenticated/wip'
+    | '/.lovable/oauth/consent'
     | '/_authenticated/manager/activity'
     | '/_authenticated/manager/master'
     | '/_authenticated/manager/settings'
@@ -356,6 +393,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  McpRoute: typeof McpRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicBatchesOpenRoute: typeof ApiPublicBatchesOpenRoute
   ApiPublicPhotoQueueRoute: typeof ApiPublicPhotoQueueRoute
   ApiPublicBatchesSublotIdItemsRoute: typeof ApiPublicBatchesSublotIdItemsRouteWithChildren
@@ -378,6 +418,20 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app': {
@@ -407,6 +461,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/wip'
       preLoaderRoute: typeof AuthenticatedWipRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/manager/activity': {
       id: '/_authenticated/manager/activity'
@@ -652,6 +713,10 @@ const ApiPublicPhotoSublotsSublotIdRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  McpRoute: McpRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicBatchesOpenRoute: ApiPublicBatchesOpenRoute,
   ApiPublicPhotoQueueRoute: ApiPublicPhotoQueueRoute,
   ApiPublicBatchesSublotIdItemsRoute:
